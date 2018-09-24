@@ -1,0 +1,7 @@
+[package]
+name = "lines-are-rusty"
+version = "0.1.0"
+authors = ["Axel Huebl <axel.huebl@plasma.ninja>"]
+
+[dependencies]
+byteorder = "*"
