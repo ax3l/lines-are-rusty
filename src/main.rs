@@ -39,18 +39,20 @@ impl Line {
 struct Point {
     x: f32,
     y: f32,
+    speed: f32,
+    direction: f32,
+    width: f32,
     pressure: f32,
-    rot_x: f32,
-    rot_y: f32,
 }
 impl Point {
-    fn new(f: (f32, f32, f32, f32, f32)) -> Point {
+    fn new(f: (f32, f32, f32, f32, f32, f32)) -> Point {
         Point{
             x: f.0,
             y: f.1,
-            pressure: f.2,
-            rot_x: f.3,
-            rot_y: f.4,
+            speed: f.2,
+            direction: f.3,
+            width: f.4,
+            pressure: f.5,
         }
     }
 }
@@ -95,21 +97,24 @@ fn parse_line_header(four_bytes: & mut std::slice::Chunks<u8>) -> Option<(i32, i
     None
 }
 
-fn parse_point_header(four_bytes: & mut std::slice::Chunks<u8>) -> Option<(f32, f32, f32, f32, f32)> {
+fn parse_point_header(four_bytes: & mut std::slice::Chunks<u8>) -> Option<(f32, f32, f32, f32, f32, f32)> {
     // let mut four_bytes = chunk.clone();
     if let Some(x) = four_bytes.next() {
         if let Some(y) = four_bytes.next() {
-            if let Some(pressure) = four_bytes.next() {
-                if let Some(rot_x) = four_bytes.next() {
-                    if let Some(rot_y) = four_bytes.next() {
-                        // TODO verify range of values
-                        return Some((
-                            read_number_f32(x),
-                            read_number_f32(y),
-                            read_number_f32(pressure),
-                            read_number_f32(rot_x),
-                            read_number_f32(rot_y)
-                        ));
+            if let Some(speed) = four_bytes.next() {
+                if let Some(direction) = four_bytes.next() {
+                    if let Some(width) = four_bytes.next() {
+                        if let Some(pressure) = four_bytes.next() {
+                            // TODO verify range of values
+                            return Some((
+                                read_number_f32(x),
+                                read_number_f32(y),
+                                read_number_f32(speed),
+                                read_number_f32(direction),
+                                read_number_f32(width),
+                                read_number_f32(pressure),
+                            ));
+                        }
                     }
                 }
             }
@@ -179,27 +184,24 @@ fn read_pages(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) -
     let mut pages = Vec::<Page>::default();
     // let mut four_bytes = chunk.clone();
     
-    if let Some(num_pages) = four_bytes.next() {
-        for _p in 0..read_number_i32(num_pages) {
-            println!("p: {} / {}", _p, read_number_i32(num_pages));
-            let new_page = Page{
-                layers: read_layers(four_bytes, _max_size_file)};
-            pages.push(new_page);
-        }
-    }
+    let num_pages = 1;
+    println!("p: 0 / {}", num_pages);
+    let new_page = Page{
+        layers: read_layers(four_bytes, _max_size_file)};
+    pages.push(new_page);
     pages
 }
 
 
 fn main() {
     let max_size_file = 1024 * 1024; // Bytes
-    let line_file = include_bytes!("../aa90b0e7-5c1a-42fe-930f-dad9cf3363cc.lines");
+    let line_file = include_bytes!("../aa90b0e7-5c1a-42fe-930f-dad9cf3363cc/0.rm");
     assert!(max_size_file >= line_file.len());
 
     // print!("{}", String::from_utf8_lossy(line_file));
 
-    let header = line_file.iter().take(43).cloned().collect::<Vec<u8>>();
-    assert_eq!(header, "reMarkable lines with selections and layers".as_bytes());
+    let header = line_file.iter().take(33).cloned().collect::<Vec<u8>>();
+    assert_eq!(header, "reMarkable .lines file, version=3".as_bytes());
 
     let mut numbers = line_file[43..].chunks(4);
     // as std::slice::Windows<[u8;4]>;
