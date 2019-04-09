@@ -1,9 +1,8 @@
-// until rust 2018
-extern crate byteorder;
-
 use std::io::Cursor;
 use byteorder::{LittleEndian, ReadBytesExt};
-
+use clap::{App, Arg};
+use std::fs::File;
+use std::io::Read;
 
 #[derive(Default)]
 struct Page {
@@ -194,8 +193,22 @@ fn read_pages(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) -
 
 
 fn main() {
+    let matches = App::new("lines-are-rusty")
+       .version("0.1")
+       .about("Converts lines files from .rm to SVG.")
+       .author("Axel Huebl <axel.huebl@plasma.ninja>")
+       .arg(Arg::with_name("file")
+            .help("The file to read from")
+            .required(true)
+            .index(1))
+       .get_matches();
+    
+    let filename = matches.value_of("file").expect("Expected required filename.");
+    let mut f = File::open(filename).unwrap();
+    let mut line_file = Vec::new();
+    f.read_to_end(&mut line_file).unwrap();
+
     let max_size_file = 1024 * 1024; // Bytes
-    let line_file = include_bytes!("../aa90b0e7-5c1a-42fe-930f-dad9cf3363cc/0.rm");
     assert!(max_size_file >= line_file.len());
 
     // print!("{}", String::from_utf8_lossy(line_file));
