@@ -1,18 +1,19 @@
 pub mod parse;
+pub mod render;
 
 pub use self::parse::*;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Page {
     pub layers: Vec<Layer>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Layer {
     pub lines: Vec<Line>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Line {
     pub brush_type: i32,
     pub color: i32,
@@ -33,7 +34,7 @@ impl Line {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Point {
     pub x: f32,
     pub y: f32,

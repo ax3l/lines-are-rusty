@@ -119,7 +119,6 @@ pub fn read_layers(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Lay
     layers
 }
 
-// bytes: &[u8]
 pub fn read_pages(content: &[u8], _max_size_file: usize) -> Vec<Page> {
     let mut cursor = Cursor::new(content);
 

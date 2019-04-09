@@ -5,5 +5,6 @@ authors = ["Axel Huebl <axel.huebl@plasma.ninja>"]
 edition = "2018"
 
 [dependencies]
-byteorder = "*"
-clap = "*"
+byteorder = "1.2"
+clap = "2"
+pdf-canvas = "0.6"
