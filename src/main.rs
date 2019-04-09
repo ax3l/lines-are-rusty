@@ -1,7 +1,7 @@
-use std::io::Cursor;
 use byteorder::{LittleEndian, ReadBytesExt};
 use clap::{App, Arg};
 use std::fs::File;
+use std::io::Cursor;
 use std::io::Read;
 
 #[derive(Default)]
@@ -24,7 +24,7 @@ struct Line {
 }
 impl Line {
     fn new(t: (i32, i32, i32, f32), pts: Vec<Point>) -> Line {
-        Line{
+        Line {
             brush_type: t.0,
             color: t.1,
             unknown_line_attribute: t.2,
@@ -45,7 +45,7 @@ struct Point {
 }
 impl Point {
     fn new(f: (f32, f32, f32, f32, f32, f32)) -> Point {
-        Point{
+        Point {
             x: f.0,
             y: f.1,
             speed: f.2,
@@ -56,10 +56,9 @@ impl Point {
     }
 }
 
-
 #[test]
 fn test_read_number_i32() {
-    let num = read_number_i32(&[42,0,0,0]);
+    let num = read_number_i32(&[42, 0, 0, 0]);
     assert_eq!(42, num);
 }
 fn read_number_i32(bytes: &[u8]) -> i32 {
@@ -76,7 +75,7 @@ fn read_number_f32(bytes: &[u8]) -> f32 {
     number
 }
 
-fn parse_line_header(four_bytes: & mut std::slice::Chunks<u8>) -> Option<(i32, i32, i32, f32)> {
+fn parse_line_header(four_bytes: &mut std::slice::Chunks<u8>) -> Option<(i32, i32, i32, f32)> {
     // let mut four_bytes = chunk.clone();
     if let Some(brush_type) = four_bytes.next() {
         if let Some(color) = four_bytes.next() {
@@ -87,7 +86,7 @@ fn parse_line_header(four_bytes: & mut std::slice::Chunks<u8>) -> Option<(i32, i
                         read_number_i32(brush_type),
                         read_number_i32(color),
                         read_number_i32(unknown_line_attribute),
-                        read_number_f32(brush_base_size)
+                        read_number_f32(brush_base_size),
                     ));
                 }
             }
@@ -96,7 +95,9 @@ fn parse_line_header(four_bytes: & mut std::slice::Chunks<u8>) -> Option<(i32, i
     None
 }
 
-fn parse_point_header(four_bytes: & mut std::slice::Chunks<u8>) -> Option<(f32, f32, f32, f32, f32, f32)> {
+fn parse_point_header(
+    four_bytes: &mut std::slice::Chunks<u8>,
+) -> Option<(f32, f32, f32, f32, f32, f32)> {
     // let mut four_bytes = chunk.clone();
     if let Some(x) = four_bytes.next() {
         if let Some(y) = four_bytes.next() {
@@ -122,7 +123,7 @@ fn parse_point_header(four_bytes: & mut std::slice::Chunks<u8>) -> Option<(f32, 
     None
 }
 
-fn read_points(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Point> {
+fn read_points(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Point> {
     let mut points = Vec::<Point>::default();
     // let mut four_bytes = chunk.clone();
 
@@ -140,7 +141,7 @@ fn read_points(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) 
     points
 }
 
-fn read_lines(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Line> {
+fn read_lines(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Line> {
     let mut lines = Vec::<Line>::default();
     // let mut four_bytes = chunk.clone();
 
@@ -149,9 +150,7 @@ fn read_lines(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) -
             println!("li: {} / {}", _li, read_number_i32(num_lines));
             if let Some(tuple) = parse_line_header(four_bytes) {
                 println!("new line!");
-                let new_line = Line::new(
-                    tuple,
-                    read_points(four_bytes, _max_size_file));
+                let new_line = Line::new(tuple, read_points(four_bytes, _max_size_file));
                 lines.push(new_line);
                 println!("new line done!");
             } else {
@@ -162,15 +161,16 @@ fn read_lines(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) -
     lines
 }
 
-fn read_layers(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Layer> {
+fn read_layers(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Layer> {
     let mut layers = Vec::<Layer>::default();
     // let mut four_bytes = chunk.clone();
 
     if let Some(num_layers) = four_bytes.next() {
         for _l in 0..read_number_i32(num_layers) {
             println!("l: {} / {}", _l, read_number_i32(num_layers));
-            let new_layer = Layer{
-                lines: read_lines(four_bytes, _max_size_file)};
+            let new_layer = Layer {
+                lines: read_lines(four_bytes, _max_size_file),
+            };
             layers.push(new_layer);
         }
     }
@@ -178,32 +178,35 @@ fn read_layers(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) 
 }
 
 // bytes: &[u8]
-fn read_pages(four_bytes: & mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Page>
-{
+fn read_pages(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Page> {
     let mut pages = Vec::<Page>::default();
     // let mut four_bytes = chunk.clone();
-    
+
     let num_pages = 1;
     println!("p: 0 / {}", num_pages);
-    let new_page = Page{
-        layers: read_layers(four_bytes, _max_size_file)};
+    let new_page = Page {
+        layers: read_layers(four_bytes, _max_size_file),
+    };
     pages.push(new_page);
     pages
 }
 
-
 fn main() {
     let matches = App::new("lines-are-rusty")
-       .version("0.1")
-       .about("Converts lines files from .rm to SVG.")
-       .author("Axel Huebl <axel.huebl@plasma.ninja>")
-       .arg(Arg::with_name("file")
-            .help("The file to read from")
-            .required(true)
-            .index(1))
-       .get_matches();
-    
-    let filename = matches.value_of("file").expect("Expected required filename.");
+        .version("0.1")
+        .about("Converts lines files from .rm to SVG.")
+        .author("Axel Huebl <axel.huebl@plasma.ninja>")
+        .arg(
+            Arg::with_name("file")
+                .help("The file to read from")
+                .required(true)
+                .index(1),
+        )
+        .get_matches();
+
+    let filename = matches
+        .value_of("file")
+        .expect("Expected required filename.");
     let mut f = File::open(filename).unwrap();
     let mut line_file = Vec::new();
     f.read_to_end(&mut line_file).unwrap();
@@ -225,17 +228,15 @@ fn main() {
         println!("cr: {:?}", c);
     }
     */
-    
+
     //if let Some(iter) = numbers {
-    let _pages = read_pages(& mut numbers, max_size_file);
+    let _pages = read_pages(&mut numbers, max_size_file);
     //} else {
     //    let pages = Vec::<Page>::default();
     //}
 
-        // .map(|x|read_next(&x, & mut pc));
-        // .collect::<Vec<_>>();
-        
-    // println!("{:?}", &numbers[..200]);
-    
+    // .map(|x|read_next(&x, & mut pc));
+    // .collect::<Vec<_>>();
 
+    // println!("{:?}", &numbers[..200]);
 }
