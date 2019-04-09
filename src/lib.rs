@@ -1,6 +1,6 @@
+#![allow(dead_code)]
+
 use byteorder::{LittleEndian, ReadBytesExt};
-use clap::{App, Arg};
-use std::fs::File;
 use std::io::Cursor;
 use std::io::Read;
 
@@ -78,62 +78,58 @@ pub fn read_number_f32(bytes: &[u8]) -> f32 {
     number
 }
 
-pub fn parse_line_header(four_bytes: &mut std::slice::Chunks<u8>) -> Option<(i32, i32, i32, f32)> {
-    // let mut four_bytes = chunk.clone();
-    if let Some(brush_type) = four_bytes.next() {
-        if let Some(color) = four_bytes.next() {
-            if let Some(unknown_line_attribute) = four_bytes.next() {
-                if let Some(brush_base_size) = four_bytes.next() {
-                    // TODO verify range of values
-                    return Some((
-                        read_number_i32(brush_type),
-                        read_number_i32(color),
-                        read_number_i32(unknown_line_attribute),
-                        read_number_f32(brush_base_size),
-                    ));
-                }
-            }
-        }
-    }
-    None
+pub fn parse_line_header(cursor: &mut Cursor<&[u8]>) -> Option<(i32, i32, i32, f32)> {
+    let mut brush_type = [0u8; 4];
+    let mut color = [0u8; 4];
+    let mut unknown_line_attribute = [0u8; 4];
+    let mut brush_base_size = [0u8; 4];
+
+    cursor.read_exact(&mut brush_type).ok()?;
+    cursor.read_exact(&mut color).ok()?;
+    cursor.read_exact(&mut unknown_line_attribute).ok()?;
+    cursor.read_exact(&mut brush_base_size).ok()?;
+
+    // TODO verify range of values
+    return Some((
+        read_number_i32(&brush_type),
+        read_number_i32(&color),
+        read_number_i32(&unknown_line_attribute),
+        read_number_f32(&brush_base_size),
+    ));
 }
 
-pub fn parse_point_header(
-    four_bytes: &mut std::slice::Chunks<u8>,
-) -> Option<(f32, f32, f32, f32, f32, f32)> {
-    // let mut four_bytes = chunk.clone();
-    if let Some(x) = four_bytes.next() {
-        if let Some(y) = four_bytes.next() {
-            if let Some(speed) = four_bytes.next() {
-                if let Some(direction) = four_bytes.next() {
-                    if let Some(width) = four_bytes.next() {
-                        if let Some(pressure) = four_bytes.next() {
-                            // TODO verify range of values
-                            return Some((
-                                read_number_f32(x),
-                                read_number_f32(y),
-                                read_number_f32(speed),
-                                read_number_f32(direction),
-                                read_number_f32(width),
-                                read_number_f32(pressure),
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    None
+pub fn parse_point_header(cursor: &mut Cursor<&[u8]>) -> Option<(f32, f32, f32, f32, f32, f32)> {
+    let mut x = [0u8; 4];
+    let mut y = [0u8; 4];
+    let mut speed = [0u8; 4];
+    let mut direction = [0u8; 4];
+    let mut width = [0u8; 4];
+    let mut pressure = [0u8; 4];
+
+    cursor.read_exact(&mut x).ok()?;
+    cursor.read_exact(&mut y).ok()?;
+    cursor.read_exact(&mut speed).ok()?;
+    cursor.read_exact(&mut direction).ok()?;
+    cursor.read_exact(&mut width).ok()?;
+    cursor.read_exact(&mut pressure).ok()?;
+
+    return Some((
+        read_number_f32(&x),
+        read_number_f32(&y),
+        read_number_f32(&speed),
+        read_number_f32(&direction),
+        read_number_f32(&width),
+        read_number_f32(&pressure),
+    ));
 }
 
-pub fn read_points(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Point> {
+pub fn read_points(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Point> {
     let mut points = Vec::<Point>::default();
-    // let mut four_bytes = chunk.clone();
-
-    if let Some(num_points) = four_bytes.next() {
-        for _pt in 0..read_number_i32(num_points) {
-            println!("pt: {} / {}", _pt, read_number_i32(num_points));
-            if let Some(tuple) = parse_point_header(four_bytes) {
+    let mut num_points = [0u8; 4];
+    if let Ok(()) = cursor.read_exact(&mut num_points) {
+        for _pt in 0..read_number_i32(&num_points) {
+            println!("pt: {} / {}", _pt, read_number_i32(&num_points));
+            if let Some(tuple) = parse_point_header(cursor) {
                 let new_point = Point::new(tuple);
                 points.push(new_point);
             } else {
@@ -144,16 +140,15 @@ pub fn read_points(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usiz
     points
 }
 
-pub fn read_lines(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Line> {
-    let mut lines = Vec::<Line>::default();
-    // let mut four_bytes = chunk.clone();
-
-    if let Some(num_lines) = four_bytes.next() {
-        for _li in 0..read_number_i32(num_lines) {
-            println!("li: {} / {}", _li, read_number_i32(num_lines));
-            if let Some(tuple) = parse_line_header(four_bytes) {
+pub fn read_lines(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Line> {
+    let mut lines = vec![];
+    let mut num_lines = [0u8; 4];
+    if let Ok(()) = cursor.read_exact(&mut num_lines) {
+        for _li in 0..read_number_i32(&num_lines) {
+            println!("li: {} / {}", _li, read_number_i32(&num_lines));
+            if let Some(tuple) = parse_line_header(cursor) {
                 println!("new line!");
-                let new_line = Line::new(tuple, read_points(four_bytes, _max_size_file));
+                let new_line = Line::new(tuple, read_points(cursor, _max_size_file));
                 lines.push(new_line);
                 println!("new line done!");
             } else {
@@ -164,15 +159,14 @@ pub fn read_lines(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize
     lines
 }
 
-pub fn read_layers(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Layer> {
-    let mut layers = Vec::<Layer>::default();
-    // let mut four_bytes = chunk.clone();
-
-    if let Some(num_layers) = four_bytes.next() {
-        for _l in 0..read_number_i32(num_layers) {
-            println!("l: {} / {}", _l, read_number_i32(num_layers));
+pub fn read_layers(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Layer> {
+    let mut layers = vec![];
+    let mut num_layers = [0u8; 4];
+    if let Ok(()) = cursor.read_exact(&mut num_layers) {
+        for _l in 0..read_number_i32(&num_layers) {
+            println!("l: {} / {}", _l, read_number_i32(&num_layers));
             let new_layer = Layer {
-                lines: read_lines(four_bytes, _max_size_file),
+                lines: read_lines(cursor, _max_size_file),
             };
             layers.push(new_layer);
         }
@@ -181,14 +175,14 @@ pub fn read_layers(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usiz
 }
 
 // bytes: &[u8]
-pub fn read_pages(four_bytes: &mut std::slice::Chunks<u8>, _max_size_file: usize) -> Vec<Page> {
-    let mut pages = Vec::<Page>::default();
-    // let mut four_bytes = chunk.clone();
+pub fn read_pages(content: &[u8], _max_size_file: usize) -> Vec<Page> {
+    let mut cursor = Cursor::new(content);
 
+    let mut pages = vec![];
     let num_pages = 1;
     println!("p: 0 / {}", num_pages);
     let new_page = Page {
-        layers: read_layers(four_bytes, _max_size_file),
+        layers: read_layers(&mut cursor, _max_size_file),
     };
     pages.push(new_page);
     pages
