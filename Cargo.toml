@@ -1,13 +1,14 @@
 [package]
 name = "lines-are-rusty"
 version = "0.1.0"
-authors = ["Axel Huebl <axel.huebl@plasma.ninja>"]
+authors = ["Axel Huebl <axel.huebl@plasma.ninja>", "David Rusu <davidrusu.me@gmail.com"]
 description = "Rust File API for the reMarkable tablet"
 repository = "https://github.com/ax3l/lines-are-rusty"
 homepage = "https://plasma.ninja/blog/devices/remarkable/binary/format/2017/12/26/reMarkable-lines-file-format.html"
 edition = "2018"
 
 [dependencies]
-byteorder = "1.2"
+byteorder = "1.3.4"
 clap = "2"
 pdf-canvas = "0.6"
+svg = "0.8.0"

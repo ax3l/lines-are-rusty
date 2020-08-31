@@ -1,7 +1,9 @@
-pub mod parse;
 pub mod render;
+pub mod v3;
+pub mod v5;
+pub use render::{render_pdf, render_svg};
 
-pub use self::parse::*;
+use std::convert::TryFrom;
 
 #[derive(Default, Debug)]
 pub struct Page {
@@ -13,9 +15,41 @@ pub struct Layer {
     pub lines: Vec<Line>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
+pub enum BrushType {
+    BallPoint,
+    Marker,
+    Fineliner,
+    SharpPencil,
+    TiltPencil,
+    Brush,
+    Highlighter,
+    Eraser,
+    EraseArea,
+}
+
+impl std::convert::TryFrom<i32> for BrushType {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            15 => Ok(BrushType::BallPoint),
+            16 => Ok(BrushType::Marker),
+            17 => Ok(BrushType::Fineliner),
+            13 => Ok(BrushType::SharpPencil),
+            14 => Ok(BrushType::TiltPencil),
+            12 => Ok(BrushType::Brush),
+            18 => Ok(BrushType::Highlighter),
+            6 => Ok(BrushType::Eraser),
+            8 => Ok(BrushType::EraseArea),
+            v => Err(format!("Unknown brush type: {}", v)),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Line {
-    pub brush_type: i32,
+    pub brush_type: BrushType,
     pub color: i32,
     pub unknown_line_attribute: i32,
     pub brush_base_size: f32,
@@ -25,7 +59,7 @@ pub struct Line {
 impl Line {
     pub fn new(t: (i32, i32, i32, f32), pts: Vec<Point>) -> Line {
         Line {
-            brush_type: t.0,
+            brush_type: BrushType::try_from(t.0).unwrap(),
             color: t.1,
             unknown_line_attribute: t.2,
             brush_base_size: t.3,

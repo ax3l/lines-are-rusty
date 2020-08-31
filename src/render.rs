@@ -1,11 +1,73 @@
-use pdf_canvas::graphicsstate::{Color, Matrix, CapStyle, JoinStyle};
-use pdf_canvas::Pdf;
 use crate::*;
+use pdf_canvas::graphicsstate::{CapStyle, Color, JoinStyle, Matrix};
+use pdf_canvas::Pdf;
 
 const BASE_LINE_WIDTH: f32 = 4.;
 
+pub fn render_highlighter_line(line: &Line) -> svg::node::element::Path {
+    let mut first_point = &line.points[0];
+
+    let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
+    for point in line.points.iter() {
+        data = data.line_to((point.x, point.y));
+    }
+
+    svg::node::element::Path::new()
+        .set("fill", "none")
+        .set("stroke", "rgb(240.0, 220.0, 40.0)")
+        .set("stroke-width", first_point.width * 0.8)
+        .set("stroke-linecap", "round")
+        .set("stroke-opacity", 0.25)
+        .set("d", data)
+}
+
+pub fn render_svg(path: &str, page: &Page) {
+    let mut doc = svg::Document::new().set("viewBox", (0, 0, 1404, 1872));
+    for layer in page.layers.iter() {
+        for line in layer.lines.iter() {
+            if line.points.len() == 0 {
+                continue;
+            }
+            match line.brush_type {
+                BrushType::Highlighter => doc = doc.add(render_highlighter_line(line)),
+                _ => {
+                    let mut prev_point = &line.points[0];
+                    for point in line.points.iter() {
+                        let mut data = svg::node::element::path::Data::new()
+                            .move_to((prev_point.x, prev_point.y))
+                            .line_to((point.x, point.y));
+                        let (width, opacity) = match line.brush_type {
+                            BrushType::BallPoint => (point.width, point.pressure.powf(5.0) + 0.7),
+                            BrushType::Marker => (point.width, 1.0),
+                            BrushType::Fineliner => (point.width, 1.0), // (line.brush_base_size * 0.55).powf(10.0),
+                            BrushType::SharpPencil => (point.width, 1.0),
+                            BrushType::TiltPencil => (point.width, 1.0),
+                            BrushType::Brush => (point.width, 1.0),
+                            BrushType::Highlighter => panic!("Should have been handled above"),
+                            BrushType::Eraser => (point.width, 1.0),
+                            BrushType::EraseArea => (point.width, 1.0),
+                        };
+
+                        doc = doc.add(
+                            svg::node::element::Path::new()
+                                .set("fill", "none")
+                                .set("stroke", "black")
+                                .set("stroke-width", width * 0.8)
+                                .set("stroke-linecap", "round")
+                                .set("stroke-opacity", opacity)
+                                .set("d", data),
+                        );
+                        prev_point = point;
+                    }
+                }
+            }
+        }
+    }
+    svg::save(path, &doc).expect("Failed to save svg doc");
+}
+
 /// Create a `mandala.pdf` file.
-pub fn render(path: &str, pages: &[Page]) {
+pub fn render_pdf(path: &str, pages: &[Page]) {
     // Open our pdf document.
     let mut document = Pdf::create(path).expect("Create PDF file");
 
@@ -23,13 +85,16 @@ pub fn render(path: &str, pages: &[Page]) {
 
             for layer in &page.layers {
                 for line in &layer.lines {
+                    if line.points.len() == 0 {
+                        continue;
+                    }
                     let first_point = &line.points[0];
                     c.move_to(first_point.x, first_point.y)?;
                     for point in &line.points {
                         c.set_line_width(point.pressure * BASE_LINE_WIDTH)?;
                         c.set_line_cap_style(CapStyle::Round)?;
                         c.set_line_join_style(JoinStyle::Round)?;
-                        c.line_to(point.x, point.y,)?;
+                        c.line_to(point.x, point.y)?;
                     }
                     c.stroke()?;
                 }

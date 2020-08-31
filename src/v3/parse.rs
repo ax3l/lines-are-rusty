@@ -1,13 +1,8 @@
-use byteorder::{LittleEndian, ReadBytesExt};
-use std::io::Cursor;
-use std::io::Read;
 use crate::*;
-
-#[test]
-fn test_read_number_i32() {
-    let num = read_number_i32(&[42, 0, 0, 0]);
-    assert_eq!(42, num);
-}
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::convert::TryFrom;
+use std::io::{Cursor, Read};
+type ByteOrder = LittleEndian;
 
 pub fn read_number_i32(bytes: &[u8]) -> i32 {
     let mut rdr = Cursor::new(&bytes[0..4]);
@@ -119,15 +114,15 @@ pub fn read_layers(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Lay
     layers
 }
 
-pub fn read_pages(content: &[u8], _max_size_file: usize) -> Vec<Page> {
+pub fn read_page(content: &[u8], _max_size_file: usize) -> Page {
     let mut cursor = Cursor::new(content);
-
-    let mut pages = vec![];
-    let num_pages = 1;
-    println!("p: 0 / {}", num_pages);
-    let new_page = Page {
+    Page {
         layers: read_layers(&mut cursor, _max_size_file),
-    };
-    pages.push(new_page);
-    pages
+    }
+}
+
+#[test]
+fn test_read_number_i32() {
+    let num = read_number_i32(&[42, 0, 0, 0]);
+    assert_eq!(42, num);
 }
