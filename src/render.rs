@@ -4,6 +4,17 @@ use pdf_canvas::Pdf;
 
 const BASE_LINE_WIDTH: f32 = 4.;
 
+pub fn line_to_svg_color(line: &Line) -> &'static str {
+    match line.brush_type {
+        BrushType::Highlighter => "rgb(240.0, 220.0, 40.0)",
+        _ => match line.color {
+            Color::Black => "black",
+            Color::Grey => "grey",
+            Color::White => "white",
+        },
+    }
+}
+
 pub fn render_highlighter_line(line: &Line) -> svg::node::element::Path {
     let mut first_point = &line.points[0];
 
@@ -14,10 +25,26 @@ pub fn render_highlighter_line(line: &Line) -> svg::node::element::Path {
 
     svg::node::element::Path::new()
         .set("fill", "none")
-        .set("stroke", "rgb(240.0, 220.0, 40.0)")
+        .set("stroke", line_to_svg_color(line))
         .set("stroke-width", first_point.width * 0.8)
         .set("stroke-linecap", "round")
         .set("stroke-opacity", 0.25)
+        .set("d", data)
+}
+
+pub fn render_fineliner_line(line: &Line) -> svg::node::element::Path {
+    let mut first_point = &line.points[0];
+
+    let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
+    for point in line.points.iter() {
+        data = data.line_to((point.x, point.y));
+    }
+
+    svg::node::element::Path::new()
+        .set("fill", "none")
+        .set("stroke", line_to_svg_color(line))
+        .set("stroke-width", first_point.width * 0.8)
+        .set("stroke-linecap", "round")
         .set("d", data)
 }
 
@@ -37,6 +64,7 @@ pub fn render_svg(path: &str, page: &Page) {
 
             match line.brush_type {
                 BrushType::Highlighter => doc = doc.add(render_highlighter_line(line)),
+                BrushType::Fineliner => doc = doc.add(render_fineliner_line(line)),
                 BrushType::EraseArea => (),
                 BrushType::Eraser => (),
                 _ => {
@@ -48,7 +76,7 @@ pub fn render_svg(path: &str, page: &Page) {
                         let (width, opacity) = match line.brush_type {
                             BrushType::BallPoint => (point.width, point.pressure.powf(5.0) + 0.7),
                             BrushType::Marker => (point.width, 1.0),
-                            BrushType::Fineliner => (point.width, 1.0), // (line.brush_base_size * 0.55).powf(10.0),
+                            BrushType::Fineliner => panic!("Should have been handled above"),
                             BrushType::SharpPencil => (point.width, 1.0),
                             BrushType::TiltPencil => (point.width, 1.0),
                             BrushType::Brush => (point.width, 1.0),
@@ -57,15 +85,26 @@ pub fn render_svg(path: &str, page: &Page) {
                             BrushType::EraseArea => panic!("Should have been handled above"),
                         };
 
-                        doc = doc.add(
-                            svg::node::element::Path::new()
-                                .set("fill", "none")
-                                .set("stroke", color)
-                                .set("stroke-width", width * 0.8)
-                                .set("stroke-linecap", "round")
-                                .set("stroke-opacity", opacity)
-                                .set("d", data),
-                        );
+                        if opacity != 1.0 {
+                            doc = doc.add(
+                                svg::node::element::Path::new()
+                                    .set("fill", "none")
+                                    .set("stroke", color)
+                                    .set("stroke-width", width * 0.8)
+                                    .set("stroke-linecap", "round")
+                                    .set("stroke-opacity", opacity)
+                                    .set("d", data),
+                            );
+                        } else {
+                            doc = doc.add(
+                                svg::node::element::Path::new()
+                                    .set("fill", "none")
+                                    .set("stroke", color)
+                                    .set("stroke-width", width * 0.8)
+                                    .set("stroke-linecap", "round")
+                                    .set("d", data),
+                            );
+                        }
                         prev_point = point;
                     }
                 }
