@@ -47,10 +47,29 @@ impl std::convert::TryFrom<i32> for BrushType {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Color {
+    Black,
+    Grey,
+    White,
+}
+
+impl TryFrom<i32> for Color {
+    type Error = String;
+    fn try_from(color_i: i32) -> Result<Self, Self::Error> {
+        match color_i {
+            0 => Ok(Color::Black),
+            1 => Ok(Color::Grey),
+            2 => Ok(Color::White),
+            _ => Err(format!("Unknown color: {}", color_i)),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Line {
     pub brush_type: BrushType,
-    pub color: i32,
+    pub color: Color,
     pub unknown_line_attribute: i32,
     pub brush_base_size: f32,
     pub points: Vec<Point>,
@@ -60,7 +79,7 @@ impl Line {
     pub fn new(t: (i32, i32, i32, f32), pts: Vec<Point>) -> Line {
         Line {
             brush_type: BrushType::try_from(t.0).unwrap(),
-            color: t.1,
+            color: Color::try_from(t.1).unwrap(),
             unknown_line_attribute: t.2,
             brush_base_size: t.3,
             points: pts,

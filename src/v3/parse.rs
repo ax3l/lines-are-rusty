@@ -63,7 +63,7 @@ pub fn parse_point_header(cursor: &mut Cursor<&[u8]>) -> Option<(f32, f32, f32, 
     ));
 }
 
-pub fn read_points(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Point> {
+pub fn read_points(cursor: &mut Cursor<&[u8]>) -> Vec<Point> {
     let mut points = Vec::<Point>::default();
     let mut num_points = [0u8; 4];
     if let Ok(()) = cursor.read_exact(&mut num_points) {
@@ -80,7 +80,7 @@ pub fn read_points(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Poi
     points
 }
 
-pub fn read_lines(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Line> {
+pub fn read_lines(cursor: &mut Cursor<&[u8]>) -> Vec<Line> {
     let mut lines = vec![];
     let mut num_lines = [0u8; 4];
     if let Ok(()) = cursor.read_exact(&mut num_lines) {
@@ -88,7 +88,7 @@ pub fn read_lines(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Line
             println!("li: {} / {}", _li, read_number_i32(&num_lines));
             if let Some(tuple) = parse_line_header(cursor) {
                 println!("new line!");
-                let new_line = Line::new(tuple, read_points(cursor, _max_size_file));
+                let new_line = Line::new(tuple, read_points(cursor));
                 lines.push(new_line);
                 println!("new line done!");
             } else {
@@ -99,14 +99,14 @@ pub fn read_lines(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Line
     lines
 }
 
-pub fn read_layers(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Layer> {
+pub fn read_layers(cursor: &mut Cursor<&[u8]>) -> Vec<Layer> {
     let mut layers = vec![];
     let mut num_layers = [0u8; 4];
     if let Ok(()) = cursor.read_exact(&mut num_layers) {
         for _l in 0..read_number_i32(&num_layers) {
             println!("l: {} / {}", _l, read_number_i32(&num_layers));
             let new_layer = Layer {
-                lines: read_lines(cursor, _max_size_file),
+                lines: read_lines(cursor),
             };
             layers.push(new_layer);
         }
@@ -114,10 +114,10 @@ pub fn read_layers(cursor: &mut Cursor<&[u8]>, _max_size_file: usize) -> Vec<Lay
     layers
 }
 
-pub fn read_page(content: &[u8], _max_size_file: usize) -> Page {
+pub fn read_page(content: &[u8]) -> Page {
     let mut cursor = Cursor::new(content);
     Page {
-        layers: read_layers(&mut cursor, _max_size_file),
+        layers: read_layers(&mut cursor),
     }
 }
 

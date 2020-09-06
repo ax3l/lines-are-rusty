@@ -1,5 +1,5 @@
 use crate::*;
-use pdf_canvas::graphicsstate::{CapStyle, Color, JoinStyle, Matrix};
+use pdf_canvas::graphicsstate::{self, CapStyle, JoinStyle, Matrix};
 use pdf_canvas::Pdf;
 
 const BASE_LINE_WIDTH: f32 = 4.;
@@ -28,8 +28,17 @@ pub fn render_svg(path: &str, page: &Page) {
             if line.points.len() == 0 {
                 continue;
             }
+
+            let color = match line.color {
+                Color::Black => "black",
+                Color::Grey => "grey",
+                Color::White => "white",
+            };
+
             match line.brush_type {
                 BrushType::Highlighter => doc = doc.add(render_highlighter_line(line)),
+                BrushType::EraseArea => (),
+                BrushType::Eraser => (),
                 _ => {
                     let mut prev_point = &line.points[0];
                     for point in line.points.iter() {
@@ -44,14 +53,14 @@ pub fn render_svg(path: &str, page: &Page) {
                             BrushType::TiltPencil => (point.width, 1.0),
                             BrushType::Brush => (point.width, 1.0),
                             BrushType::Highlighter => panic!("Should have been handled above"),
-                            BrushType::Eraser => (point.width, 1.0),
-                            BrushType::EraseArea => (point.width, 1.0),
+                            BrushType::Eraser => panic!("Should have been handled above"),
+                            BrushType::EraseArea => panic!("Should have been handled above"),
                         };
 
                         doc = doc.add(
                             svg::node::element::Path::new()
                                 .set("fill", "none")
-                                .set("stroke", "black")
+                                .set("stroke", color)
                                 .set("stroke-width", width * 0.8)
                                 .set("stroke-linecap", "round")
                                 .set("stroke-opacity", opacity)
@@ -81,7 +90,7 @@ pub fn render_pdf(path: &str, pages: &[Page]) {
             c.concat(Matrix::scale(1., -1.))?;
             c.concat(Matrix::translate(0., -1872.))?;
 
-            c.set_stroke_color(Color::gray(0))?;
+            c.set_stroke_color(graphicsstate::Color::gray(0))?;
 
             for layer in &page.layers {
                 for line in &layer.lines {

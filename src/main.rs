@@ -32,16 +32,16 @@ fn main() {
     let mut line_file = Vec::<u8>::new();
     f.read_to_end(&mut line_file).unwrap();
 
-    let max_size_file = 1024 * 1024; // 1mb, or 1024 kilobytes
-    assert!(max_size_file >= line_file.len());
+    // let max_size_file = 1024 * 1024; // 1mb, or 1024 kilobytes
+    // assert!(max_size_file >= line_file.len());
 
     let page = if &line_file[0..33] == "reMarkable .lines file, version=3".as_bytes() {
         let content = &line_file[43..];
-        lines_are_rusty::v3::read_page(&content, max_size_file)
+        lines_are_rusty::v3::read_page(&content)
     } else if &line_file[0..33] == "reMarkable .lines file, version=5".as_bytes() {
         println!("{:?}", &line_file[33..43]);
         let content = &line_file[43..];
-        lines_are_rusty::v5::read_page(&content, max_size_file).expect("Failed to parse document")
+        lines_are_rusty::v5::read_page(&content).expect("Failed to parse document")
     } else {
         println!("Unsupported line file format:");
         println!("{}", std::str::from_utf8(&line_file[0..33]).unwrap());
