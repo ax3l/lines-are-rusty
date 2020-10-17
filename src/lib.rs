@@ -71,6 +71,7 @@ pub struct Line {
     pub brush_type: BrushType,
     pub color: Color,
     pub unknown_line_attribute: i32,
+    pub unknown_line_attribute_2: i32,
     pub brush_base_size: f32,
     pub points: Vec<Point>,
 }
@@ -81,6 +82,7 @@ impl Line {
             brush_type: BrushType::try_from(t.0).unwrap(),
             color: Color::try_from(t.1).unwrap(),
             unknown_line_attribute: t.2,
+            unknown_line_attribute_2: 0,
             brush_base_size: t.3,
             points: pts,
         }

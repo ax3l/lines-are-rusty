@@ -1,74 +1,33 @@
 use crate::*;
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::convert::TryFrom;
-use std::io::{Cursor, Read};
-type ByteOrder = LittleEndian;
-
-pub fn read_number_i32(bytes: &[u8]) -> i32 {
-    let mut rdr = Cursor::new(&bytes[0..4]);
-    // TODO implement if let Some(...)
-    let number = rdr.read_i32::<LittleEndian>().unwrap();
-    number
-}
-
-pub fn read_number_f32(bytes: &[u8]) -> f32 {
-    let mut rdr = Cursor::new(&bytes[0..4]);
-    // TODO implement if let Some(...)
-    let number = rdr.read_f32::<LittleEndian>().unwrap();
-    number
-}
+use std::io::Cursor;
 
 pub fn parse_line_header(cursor: &mut Cursor<&[u8]>) -> Option<(i32, i32, i32, f32)> {
-    let mut brush_type = [0u8; 4];
-    let mut color = [0u8; 4];
-    let mut unknown_line_attribute = [0u8; 4];
-    let mut brush_base_size = [0u8; 4];
-
-    cursor.read_exact(&mut brush_type).ok()?;
-    cursor.read_exact(&mut color).ok()?;
-    cursor.read_exact(&mut unknown_line_attribute).ok()?;
-    cursor.read_exact(&mut brush_base_size).ok()?;
+    let brush_type = cursor.read_i32::<LittleEndian>().ok()?;
+    let color = cursor.read_i32::<LittleEndian>().ok()?;
+    let unknown_line_attribute = cursor.read_i32::<LittleEndian>().ok()?;
+    let brush_base_size = cursor.read_f32::<LittleEndian>().ok()?;
 
     // TODO verify range of values
-    return Some((
-        read_number_i32(&brush_type),
-        read_number_i32(&color),
-        read_number_i32(&unknown_line_attribute),
-        read_number_f32(&brush_base_size),
-    ));
+    Some((brush_type, color, unknown_line_attribute, brush_base_size))
 }
 
 pub fn parse_point_header(cursor: &mut Cursor<&[u8]>) -> Option<(f32, f32, f32, f32, f32, f32)> {
-    let mut x = [0u8; 4];
-    let mut y = [0u8; 4];
-    let mut speed = [0u8; 4];
-    let mut direction = [0u8; 4];
-    let mut width = [0u8; 4];
-    let mut pressure = [0u8; 4];
+    let x = cursor.read_f32::<LittleEndian>().ok()?;
+    let y = cursor.read_f32::<LittleEndian>().ok()?;
+    let speed = cursor.read_f32::<LittleEndian>().ok()?;
+    let direction = cursor.read_f32::<LittleEndian>().ok()?;
+    let width = cursor.read_f32::<LittleEndian>().ok()?;
+    let pressure = cursor.read_f32::<LittleEndian>().ok()?;
 
-    cursor.read_exact(&mut x).ok()?;
-    cursor.read_exact(&mut y).ok()?;
-    cursor.read_exact(&mut speed).ok()?;
-    cursor.read_exact(&mut direction).ok()?;
-    cursor.read_exact(&mut width).ok()?;
-    cursor.read_exact(&mut pressure).ok()?;
-
-    return Some((
-        read_number_f32(&x),
-        read_number_f32(&y),
-        read_number_f32(&speed),
-        read_number_f32(&direction),
-        read_number_f32(&width),
-        read_number_f32(&pressure),
-    ));
+    Some((x, y, speed, direction, width, pressure))
 }
 
 pub fn read_points(cursor: &mut Cursor<&[u8]>) -> Vec<Point> {
     let mut points = Vec::<Point>::default();
-    let mut num_points = [0u8; 4];
-    if let Ok(()) = cursor.read_exact(&mut num_points) {
-        for _pt in 0..read_number_i32(&num_points) {
-            println!("pt: {} / {}", _pt, read_number_i32(&num_points));
+    if let Ok(num_points) = cursor.read_i32::<LittleEndian>() {
+        for _pt in 0..num_points {
+            println!("pt: {} / {}", _pt, num_points);
             if let Some(tuple) = parse_point_header(cursor) {
                 let new_point = Point::new(tuple);
                 points.push(new_point);
@@ -82,10 +41,9 @@ pub fn read_points(cursor: &mut Cursor<&[u8]>) -> Vec<Point> {
 
 pub fn read_lines(cursor: &mut Cursor<&[u8]>) -> Vec<Line> {
     let mut lines = vec![];
-    let mut num_lines = [0u8; 4];
-    if let Ok(()) = cursor.read_exact(&mut num_lines) {
-        for _li in 0..read_number_i32(&num_lines) {
-            println!("li: {} / {}", _li, read_number_i32(&num_lines));
+    if let Ok(num_lines) = cursor.read_i32::<LittleEndian>() {
+        for _li in 0..num_lines {
+            println!("li: {} / {}", _li, num_lines);
             if let Some(tuple) = parse_line_header(cursor) {
                 println!("new line!");
                 let new_line = Line::new(tuple, read_points(cursor));
@@ -101,10 +59,9 @@ pub fn read_lines(cursor: &mut Cursor<&[u8]>) -> Vec<Line> {
 
 pub fn read_layers(cursor: &mut Cursor<&[u8]>) -> Vec<Layer> {
     let mut layers = vec![];
-    let mut num_layers = [0u8; 4];
-    if let Ok(()) = cursor.read_exact(&mut num_layers) {
-        for _l in 0..read_number_i32(&num_layers) {
-            println!("l: {} / {}", _l, read_number_i32(&num_layers));
+    if let Ok(num_layers) = cursor.read_i32::<LittleEndian>() {
+        for _l in 0..num_layers {
+            println!("l: {} / {}", _l, num_layers);
             let new_layer = Layer {
                 lines: read_lines(cursor),
             };
@@ -119,10 +76,4 @@ pub fn read_page(content: &[u8]) -> Page {
     Page {
         layers: read_layers(&mut cursor),
     }
-}
-
-#[test]
-fn test_read_number_i32() {
-    let num = read_number_i32(&[42, 0, 0, 0]);
-    assert_eq!(42, num);
 }

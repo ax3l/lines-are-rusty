@@ -16,7 +16,7 @@ pub fn line_to_svg_color(line: &Line) -> &'static str {
 }
 
 pub fn render_highlighter_line(line: &Line) -> svg::node::element::Path {
-    let mut first_point = &line.points[0];
+    let first_point = &line.points[0];
 
     let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
     for point in line.points.iter() {
@@ -33,7 +33,7 @@ pub fn render_highlighter_line(line: &Line) -> svg::node::element::Path {
 }
 
 pub fn render_fineliner_line(line: &Line) -> svg::node::element::Path {
-    let mut first_point = &line.points[0];
+    let first_point = &line.points[0];
 
     let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
     for point in line.points.iter() {
@@ -52,7 +52,7 @@ pub fn render_svg(path: &str, page: &Page) {
     let mut doc = svg::Document::new().set("viewBox", (0, 0, 1404, 1872));
     for layer in page.layers.iter() {
         for line in layer.lines.iter() {
-            if line.points.len() == 0 {
+            if line.points.is_empty() {
                 continue;
             }
 
@@ -70,7 +70,7 @@ pub fn render_svg(path: &str, page: &Page) {
                 _ => {
                     let mut prev_point = &line.points[0];
                     for point in line.points.iter() {
-                        let mut data = svg::node::element::path::Data::new()
+                        let data = svg::node::element::path::Data::new()
                             .move_to((prev_point.x, prev_point.y))
                             .line_to((point.x, point.y));
                         let (width, opacity) = match line.brush_type {
@@ -133,7 +133,7 @@ pub fn render_pdf(path: &str, pages: &[Page]) {
 
             for layer in &page.layers {
                 for line in &layer.lines {
-                    if line.points.len() == 0 {
+                    if line.points.is_empty() {
                         continue;
                     }
                     let first_point = &line.points[0];
