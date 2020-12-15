@@ -80,6 +80,7 @@ pub fn render_svg(path: &str, page: &Page) {
                             BrushType::SharpPencil => (point.width, 1.0),
                             BrushType::TiltPencil => (point.width, 1.0),
                             BrushType::Brush => (point.width, 1.0),
+                            BrushType::Calligraphy => (point.width, 1.0),
                             BrushType::Highlighter => panic!("Should have been handled above"),
                             BrushType::Eraser => panic!("Should have been handled above"),
                             BrushType::EraseArea => panic!("Should have been handled above"),

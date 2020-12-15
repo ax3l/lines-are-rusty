@@ -26,6 +26,7 @@ pub enum BrushType {
     Highlighter,
     Eraser,
     EraseArea,
+    Calligraphy,
 }
 
 impl std::convert::TryFrom<i32> for BrushType {
@@ -33,6 +34,7 @@ impl std::convert::TryFrom<i32> for BrushType {
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
+            21 => Ok(BrushType::Calligraphy),
             15 => Ok(BrushType::BallPoint),
             16 => Ok(BrushType::Marker),
             17 => Ok(BrushType::Fineliner),
