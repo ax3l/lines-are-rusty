@@ -15,9 +15,15 @@ fn main() {
         )
         .arg(
             Arg::with_name("output")
-                .help("The file to save the PDF to")
+                .help("The file to save the SVG to")
                 .required(true)
                 .index(2),
+        )
+        .arg(
+            Arg::with_name("no-auto-crop")
+                .short("c")
+                .long("no-crop")
+                .help("Don't crop the page to fit the content")
         )
         .get_matches();
     let filename = matches
@@ -26,6 +32,8 @@ fn main() {
     let output_filename = matches
         .value_of("output")
         .expect("Expected required filename.");
+    let auto_crop = !matches
+        .is_present("no-auto-crop");
 
     // Load the file into a Vec<u8>
     let mut f = File::open(filename).unwrap();
@@ -48,7 +56,8 @@ fn main() {
         return;
     };
 
-    println!("done.");
-    lines_are_rusty::render_svg(&format!("{}.svg", output_filename), &page);
+    lines_are_rusty::render_svg(&format!("{}.svg", output_filename), &page, auto_crop);
     // lines_are_rusty::render_pdf(&format!("{}.pdf", output_filename), &[page]);
+
+    println!("done.");
 }

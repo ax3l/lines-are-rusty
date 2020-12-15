@@ -15,12 +15,12 @@ pub fn line_to_svg_color(line: &Line) -> &'static str {
     }
 }
 
-pub fn render_highlighter_line(line: &Line) -> svg::node::element::Path {
+pub fn render_highlighter_line(line: &Line, min_x: f32, min_y: f32) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
-    let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
+    let mut data = svg::node::element::path::Data::new().move_to((first_point.x-min_x, first_point.y-min_y));
     for point in line.points.iter() {
-        data = data.line_to((point.x, point.y));
+        data = data.line_to((point.x-min_x, point.y-min_y));
     }
 
     svg::node::element::Path::new()
@@ -32,12 +32,12 @@ pub fn render_highlighter_line(line: &Line) -> svg::node::element::Path {
         .set("d", data)
 }
 
-pub fn render_fineliner_line(line: &Line) -> svg::node::element::Path {
+pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
-    let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
+    let mut data = svg::node::element::path::Data::new().move_to((first_point.x-min_x, first_point.y-min_y));
     for point in line.points.iter() {
-        data = data.line_to((point.x, point.y));
+        data = data.line_to((point.x-min_x, point.y-min_y));
     }
 
     svg::node::element::Path::new()
@@ -48,8 +48,31 @@ pub fn render_fineliner_line(line: &Line) -> svg::node::element::Path {
         .set("d", data)
 }
 
-pub fn render_svg(path: &str, page: &Page) {
-    let mut doc = svg::Document::new().set("viewBox", (0, 0, 1404, 1872));
+pub fn crop(page: &Page) -> (f32, f32, f32, f32) {
+    let mut min_x = 1404_f32;
+    let mut min_y = 1872_f32;
+    let mut max_x = 0_f32;
+    let mut max_y = 0_f32;
+    for layer in page.layers.iter() {
+        for line in layer.lines.iter() {
+            for point in line.points.iter() {
+                min_x = min_x.min(point.x);
+                min_y = min_y.min(point.y);
+                max_x = max_x.max(point.x);
+                max_y = max_y.max(point.y);
+            }
+        }
+    }
+    (min_x, min_y, max_x, max_y)
+}
+
+pub fn render_svg(path: &str, page: &Page, auto_crop: bool) {
+    let (min_x, min_y, max_x, max_y) = if auto_crop {
+        crop(page)
+    } else {
+        (0_f32, 0_f32, 1404_f32, 1872_f32)
+    };
+    let mut doc = svg::Document::new();
     for layer in page.layers.iter() {
         for line in layer.lines.iter() {
             if line.points.is_empty() {
@@ -63,16 +86,16 @@ pub fn render_svg(path: &str, page: &Page) {
             };
 
             match line.brush_type {
-                BrushType::Highlighter => doc = doc.add(render_highlighter_line(line)),
-                BrushType::Fineliner => doc = doc.add(render_fineliner_line(line)),
+                BrushType::Highlighter => doc = doc.add(render_highlighter_line(line, min_x, min_y)),
+                BrushType::Fineliner => doc = doc.add(render_fineliner_line(line, min_x, min_y)),
                 BrushType::EraseArea => (),
                 BrushType::Eraser => (),
                 _ => {
                     let mut prev_point = &line.points[0];
                     for point in line.points.iter() {
                         let data = svg::node::element::path::Data::new()
-                            .move_to((prev_point.x, prev_point.y))
-                            .line_to((point.x, point.y));
+                            .move_to((prev_point.x - min_x, prev_point.y - min_y))
+                            .line_to((point.x - min_x, point.y - min_y));
                         let (width, opacity) = match line.brush_type {
                             BrushType::BallPoint => (point.width, point.pressure.powf(5.0) + 0.7),
                             BrushType::Marker => (point.width, 1.0),
@@ -112,6 +135,7 @@ pub fn render_svg(path: &str, page: &Page) {
             }
         }
     }
+    let doc = doc.set("viewBox", (0, 0, max_x-min_x, max_y-min_y));
     svg::save(path, &doc).expect("Failed to save svg doc");
 }
 
