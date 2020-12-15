@@ -4,40 +4,20 @@ use pdf_canvas::Pdf;
 
 const BASE_LINE_WIDTH: f32 = 4.;
 
-pub fn line_to_svg_color(line: &Line, layer_id: usize) -> &'static str {
+// black,grey,white;red,magenta,white;blue,cyan,white;limegreen,yellow,white;darkorchid,darkorange,white
+
+pub fn line_to_svg_color<'a>(line: &Line, layer_id: usize, layer_colors: &'a LayerColors) -> &'a str {
     match line.brush_type {
         BrushType::Highlighter => "rgb(240, 220, 40)",
-        _ => match layer_id {
-            1 => match line.color {
-                Color::Black => "red",
-                Color::Grey => "magenta",
-                Color::White => "white",
-            },
-            2 => match line.color {
-                Color::Black => "blue",
-                Color::Grey => "cyan",
-                Color::White => "white",
-            },
-            3 => match line.color {
-                Color::Black => "limegreen",
-                Color::Grey => "yellow",
-                Color::White => "white",
-            },
-            4 => match line.color {
-                Color::Black => "darkorchid",
-                Color::Grey => "darkorange",
-                Color::White => "white",
-            },
-            _ => match line.color {
-                Color::Black => "black",
-                Color::Grey => "grey",
-                Color::White => "white",
-            },
+        _ => match line.color {
+            Color::Black => &layer_colors.colors[layer_id].0,
+            Color::Grey => &layer_colors.colors[layer_id].1,
+            Color::White => &layer_colors.colors[layer_id].2,
         },
     }
 }
 
-pub fn render_highlighter_line(line: &Line, min_x: f32, min_y: f32, layer_id: usize) -> svg::node::element::Path {
+pub fn render_highlighter_line(line: &Line, min_x: f32, min_y: f32, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
     let mut data = svg::node::element::path::Data::new().move_to((first_point.x-min_x, first_point.y-min_y));
@@ -47,14 +27,14 @@ pub fn render_highlighter_line(line: &Line, min_x: f32, min_y: f32, layer_id: us
 
     svg::node::element::Path::new()
         .set("fill", "none")
-        .set("stroke", line_to_svg_color(line, layer_id))
+        .set("stroke", line_to_svg_color(line, layer_id, layer_colors))
         .set("stroke-width", first_point.width * 0.8)
         .set("stroke-linecap", "round")
         .set("stroke-opacity", 0.25)
         .set("d", data)
 }
 
-pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usize) -> svg::node::element::Path {
+pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
     let mut data = svg::node::element::path::Data::new().move_to((first_point.x-min_x, first_point.y-min_y));
@@ -64,7 +44,7 @@ pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usiz
 
     svg::node::element::Path::new()
         .set("fill", "none")
-        .set("stroke", line_to_svg_color(line, layer_id))
+        .set("stroke", line_to_svg_color(line, layer_id, layer_colors))
         .set("stroke-width", first_point.width * 0.8)
         .set("stroke-linecap", "round")
         .set("d", data)
@@ -88,7 +68,7 @@ pub fn crop(page: &Page) -> (f32, f32, f32, f32) {
     (min_x, min_y, max_x, max_y)
 }
 
-pub fn render_svg(path: &str, page: &Page, auto_crop: bool) {
+pub fn render_svg(path: &str, page: &Page, auto_crop: bool, layer_colors: &LayerColors) {
     let (min_x, min_y, max_x, max_y) = if auto_crop {
         crop(page)
     } else {
@@ -100,10 +80,10 @@ pub fn render_svg(path: &str, page: &Page, auto_crop: bool) {
             if line.points.is_empty() {
                 continue;
             }
-            let color = line_to_svg_color(&line, layer_id);
+            let color = line_to_svg_color(&line, layer_id, layer_colors);
             match line.brush_type {
-                BrushType::Highlighter => doc = doc.add(render_highlighter_line(line, min_x, min_y, layer_id)),
-                BrushType::Fineliner => doc = doc.add(render_fineliner_line(line, min_x, min_y, layer_id)),
+                BrushType::Highlighter => doc = doc.add(render_highlighter_line(line, min_x, min_y, layer_id, layer_colors)),
+                BrushType::Fineliner => doc = doc.add(render_fineliner_line(line, min_x, min_y, layer_id, layer_colors)),
                 BrushType::EraseArea => (),
                 BrushType::Eraser => (),
                 _ => {

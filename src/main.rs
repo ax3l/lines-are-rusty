@@ -21,9 +21,16 @@ fn main() {
         )
         .arg(
             Arg::with_name("no-auto-crop")
-                .short("c")
+                .short("n")
                 .long("no-crop")
                 .help("Don't crop the page to fit the content")
+        )
+        .arg(
+            Arg::with_name("custom-colors")
+                .short("c")
+                .long("colors")
+                .help("Which colors to use for the layers. Format: L1-black,L1-gray,L1-white;...;L5-black,L5-gray,L5-white")
+                .default_value("black,gray,white;black,gray,white;black,gray,white;black,gray,white;black,gray,white")
         )
         .get_matches();
     let filename = matches
@@ -34,6 +41,16 @@ fn main() {
         .expect("Expected required filename.");
     let auto_crop = !matches
         .is_present("no-auto-crop");
+    let colors = matches
+        .value_of("custom-colors").unwrap();
+
+
+    let layer_colors = lines_are_rusty::LayerColors {
+        colors: colors.split(";").map(|layer| {
+            let mut it = layer.split(",");
+            (it.next().unwrap().to_string(), it.next().unwrap().to_string(), it.next().unwrap().to_string())
+        }).collect()
+    };
 
     // Load the file into a Vec<u8>
     let mut f = File::open(filename).unwrap();
@@ -56,7 +73,7 @@ fn main() {
         return;
     };
 
-    lines_are_rusty::render_svg(&format!("{}.svg", output_filename), &page, auto_crop);
+    lines_are_rusty::render_svg(&format!("{}.svg", output_filename), &page, auto_crop, &layer_colors);
     // lines_are_rusty::render_pdf(&format!("{}.pdf", output_filename), &[page]);
 
     println!("done.");

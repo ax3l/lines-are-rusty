@@ -113,3 +113,7 @@ impl Point {
         }
     }
 }
+
+pub struct LayerColors {
+    pub colors: Vec<(String, String, String)>,
+}
