@@ -123,18 +123,6 @@ pub struct Line {
     pub points: Vec<Point>,
 }
 
-impl Line {
-    pub fn new(t: (i32, i32, i32, f32), pts: Vec<Point>) -> Line {
-        Line {
-            brush_type: BrushType::try_from(t.0).unwrap(),
-            color: Color::try_from(t.1).unwrap(),
-            unknown_line_attribute: t.2,
-            unknown_line_attribute_2: 0,
-            brush_base_size: t.3,
-            points: pts,
-        }
-    }
-}
 
 #[derive(Default, Debug)]
 pub struct Point {
@@ -144,19 +132,6 @@ pub struct Point {
     pub direction: f32,
     pub width: f32,
     pub pressure: f32,
-}
-
-impl Point {
-    pub fn new(f: (f32, f32, f32, f32, f32, f32)) -> Point {
-        Point {
-            x: f.0,
-            y: f.1,
-            speed: f.2,
-            direction: f.3,
-            width: f.4,
-            pressure: f.5,
-        }
-    }
 }
 
 pub struct LayerColors {

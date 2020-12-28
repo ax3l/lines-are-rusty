@@ -54,71 +54,52 @@ impl LinesDataReader<'_> {
         self.file.read_f32::<LittleEndian>()
     }
 
-    pub fn parse_line(&mut self) -> Result<Line, io::Error> {
-        let brush_type = BrushType::try_from(self.read_i32()?)
-            .expect("Failed to parse brush type");
-        let color = Color::try_from(self.read_i32()?).unwrap();
-        let unknown_line_attribute = self.read_i32()?;
-        let brush_base_size = self.read_f32()?; // width?
-        let unknown_line_attribute_2 = if self.version >= 5 {
-            self.read_i32()?
-        } else {
-            0
-        };
-        let num_points = self.read_i32()?;
-
-        let mut points = Vec::new();
-        for _pt in 0..num_points {
-            let point = self.parse_point()?;
-            points.push(point);
-        }
-
+    fn read_line(&mut self) -> Result<Line, Box<dyn error::Error>> {
         // TODO verify range of values
         Ok(Line {
-            brush_type,
-            color,
-            unknown_line_attribute,
-            unknown_line_attribute_2,
-            brush_base_size,
-            points,
+            brush_type: BrushType::try_from(self.read_i32()?)?,
+            color: Color::try_from(self.read_i32()?)?,
+            unknown_line_attribute: self.read_i32()?,
+            brush_base_size: self.read_f32()?, // width
+            unknown_line_attribute_2: if self.version >= 5 {
+                self.read_i32()?
+            } else {
+                0
+            },
+            points: self.read_points()?
         })
     }
 
-    pub fn parse_point(&mut self) -> Result<Point, io::Error> {
-        let x = self.read_f32()?;
-        let y = self.read_f32()?;
-        let speed = self.read_f32()?;
-        let direction = self.read_f32()?;
-        let width = self.read_f32()?;
-        let pressure = self.read_f32()?;
+    fn read_points(&mut self) -> Result<Vec<Point>, io::Error> {
+        let num_points = self.read_i32()?;
+        (0..num_points).map(|_| self.read_point()).collect()
+    }
 
+    fn read_point(&mut self) -> Result<Point, io::Error> {
         Ok(Point {
-            x,
-            y,
-            speed,
-            direction,
-            width,
-            pressure,
+            x: self.read_f32()?,
+            y: self.read_f32()?,
+            speed: self.read_f32()?,
+            direction: self.read_f32()?,
+            width: self.read_f32()?,
+            pressure: self.read_f32()?,
         })
     }
 
-    pub fn read_lines(&mut self) -> Result<Vec<Line>, io::Error> {
-        let mut lines = vec![];
+    fn read_lines(&mut self) -> Result<Vec<Line>, Box<dyn error::Error>> {
         let num_lines = self.read_i32()?;
-        for _li in 0..num_lines {
-            lines.push(self.parse_line()?);
-        }
-        Ok(lines)
+        (0..num_lines).map(|_| self.read_line()).collect()
     }
 
-    pub fn read_layers(&mut self) -> Result<Vec<Layer>, io::Error> {
-        let mut layers = vec![];
+    fn read_layers(&mut self) -> Result<Vec<Layer>, Box<dyn error::Error>> {
         let num_layers = self.read_i32()?;
-        for _l in 0..num_layers {
-            let lines = self.read_lines()?;
-            layers.push(Layer { lines });
-        }
-        Ok(layers)
+        (0..num_layers)
+            .map(|_| {
+                Ok(Layer {
+                    lines: self.read_lines()?,
+                })
+            })
+            .collect()
     }
 
     pub fn read_pages(&mut self) -> Result<Vec<Page>, Box<dyn error::Error>> {
