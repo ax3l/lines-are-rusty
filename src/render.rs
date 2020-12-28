@@ -86,6 +86,8 @@ pub fn render_svg(path: &str, page: &Page, auto_crop: bool, layer_colors: &Layer
                 BrushType::Fineliner => doc = doc.add(render_fineliner_line(line, min_x, min_y, layer_id, layer_colors)),
                 BrushType::EraseArea => (),
                 BrushType::Eraser => (),
+                BrushType::EraseAll => (),
+                BrushType::SelectionBrush => (),
                 _ => {
                     let mut prev_point = &line.points[0];
                     for point in line.points.iter() {
@@ -100,9 +102,12 @@ pub fn render_svg(path: &str, page: &Page, auto_crop: bool, layer_colors: &Layer
                             BrushType::TiltPencil => (point.width, 1.0),
                             BrushType::Brush => (point.width, 1.0),
                             BrushType::Calligraphy => (point.width, 1.0),
-                            BrushType::Highlighter => panic!("Should have been handled above"),
-                            BrushType::Eraser => panic!("Should have been handled above"),
-                            BrushType::EraseArea => panic!("Should have been handled above"),
+                            BrushType::Pen => (point.width, 1.0),
+                            BrushType::Highlighter
+                            | BrushType::Eraser
+                            | BrushType::EraseArea
+                            | BrushType::EraseAll
+                            | BrushType::SelectionBrush => panic!("Should have been handled above"),
                         };
 
                         if opacity != 1.0 {

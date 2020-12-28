@@ -55,7 +55,10 @@ pub enum BrushType {
     Highlighter,
     Eraser,
     EraseArea,
+    EraseAll,
     Calligraphy,
+    Pen,
+    SelectionBrush,
 }
 
 impl std::convert::TryFrom<i32> for BrushType {
@@ -63,16 +66,29 @@ impl std::convert::TryFrom<i32> for BrushType {
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
-            21 => Ok(BrushType::Calligraphy),
+            // There seem to be different "versions" of similar brushes (e.g.
+            // "Brush" at 0 and 12). v3 seems e.g. to use Brush 0 while v5 seems
+            // to use Brush 12.
+            0 => Ok(BrushType::Brush),
+            1 => Ok(BrushType::TiltPencil),
+            2 => Ok(BrushType::Pen),
+            3 => Ok(BrushType::Marker),
+            4 => Ok(BrushType::Fineliner),
+            5 => Ok(BrushType::Highlighter),
+            6 => Ok(BrushType::Eraser),
+            7 => Ok(BrushType::SharpPencil),
+            8 => Ok(BrushType::EraseArea),
+            9 => Ok(BrushType::EraseAll),
+            10 => Ok(BrushType::SelectionBrush),
+            11 => Ok(BrushType::SelectionBrush),
+            12 => Ok(BrushType::Brush),
+            13 => Ok(BrushType::SharpPencil),
+            14 => Ok(BrushType::TiltPencil),
             15 => Ok(BrushType::BallPoint),
             16 => Ok(BrushType::Marker),
             17 => Ok(BrushType::Fineliner),
-            13 => Ok(BrushType::SharpPencil),
-            14 => Ok(BrushType::TiltPencil),
-            12 => Ok(BrushType::Brush),
             18 => Ok(BrushType::Highlighter),
-            6 => Ok(BrushType::Eraser),
-            8 => Ok(BrushType::EraseArea),
+            21 => Ok(BrushType::Calligraphy),
             v => Err(format!("Unknown brush type: {}", v)),
         }
     }
