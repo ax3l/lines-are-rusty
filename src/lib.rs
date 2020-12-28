@@ -1,9 +1,38 @@
 pub mod render;
-pub mod v3;
-pub mod v5;
 pub use render::{render_pdf, render_svg};
+use std::error;
+use std::fmt;
+
+mod parse;
 
 use std::convert::TryFrom;
+
+#[derive(Debug, Default)]
+pub struct VersionError {
+    version_string: String,
+}
+
+impl VersionError {
+    fn boxed(version_string: &str) -> Box<VersionError> {
+        Box::new(VersionError {
+            version_string: version_string.to_string(),
+        })
+    }
+}
+
+impl fmt::Display for VersionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Unsupported version string: {}", self.version_string)
+    }
+}
+
+impl error::Error for VersionError {}
+
+#[derive(Debug, Default)]
+pub struct LinesData {
+    pub version: i32,
+    pub pages: Vec<Page>,
+}
 
 #[derive(Default, Debug)]
 pub struct Page {
