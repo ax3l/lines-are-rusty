@@ -1,7 +1,7 @@
-use std::io::BufReader;
 use clap::{App, Arg};
 use lines_are_rusty::LinesData;
 use std::fs::File;
+use std::io::{self, BufReader, BufWriter, Write};
 
 fn main() {
     let matches = App::new("lines-are-rusty")
@@ -16,8 +16,7 @@ fn main() {
         )
         .arg(
             Arg::with_name("output")
-                .help("The file to save the SVG to")
-                .required(true)
+                .help("Output file name for rendered output. If not present, output is written to stdout.")
                 .index(2),
         )
         .arg(
@@ -37,14 +36,9 @@ fn main() {
     let filename = matches
         .value_of("file")
         .expect("Expected required filename.");
-    let output_filename = matches
-        .value_of("output")
-        .expect("Expected required filename.");
-    let auto_crop = !matches
-        .is_present("no-auto-crop");
-    let colors = matches
-        .value_of("custom-colors").unwrap();
-
+    let output_filename = matches.value_of("output");
+    let auto_crop = !matches.is_present("no-auto-crop");
+    let colors = matches.value_of("custom-colors").unwrap();
 
     let layer_colors = lines_are_rusty::LayerColors {
         colors: colors.split(";").map(|layer| {
@@ -72,8 +66,13 @@ fn main() {
         }
     };
 
-    lines_are_rusty::render_svg(&format!("{}.svg", output_filename), &lines_data.pages[0], auto_crop, &layer_colors);
+    let mut output = BufWriter::new(match output_filename {
+        Some(output_filename) => Box::new(File::create(output_filename).unwrap()),
+        None => Box::new(io::stdout()) as Box<dyn Write>,
+    });
+
+    lines_are_rusty::render_svg(&mut output, &lines_data.pages[0], auto_crop, &layer_colors);
     // lines_are_rusty::render_pdf(&format!("{}.pdf", output_filename), &[page]);
 
-    println!("done.");
+    eprintln!("done.");
 }

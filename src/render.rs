@@ -1,3 +1,4 @@
+use std::io::Write;
 use crate::*;
 use pdf_canvas::graphicsstate::{self, CapStyle, JoinStyle, Matrix};
 use pdf_canvas::Pdf;
@@ -68,7 +69,7 @@ pub fn crop(page: &Page) -> (f32, f32, f32, f32) {
     (min_x, min_y, max_x, max_y)
 }
 
-pub fn render_svg(path: &str, page: &Page, auto_crop: bool, layer_colors: &LayerColors) {
+pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_colors: &LayerColors) {
     let (min_x, min_y, max_x, max_y) = if auto_crop {
         crop(page)
     } else {
@@ -137,7 +138,7 @@ pub fn render_svg(path: &str, page: &Page, auto_crop: bool, layer_colors: &Layer
         }
     }
     let doc = doc.set("viewBox", (0, 0, max_x-min_x, max_y-min_y));
-    svg::save(path, &doc).expect("Failed to save svg doc");
+    svg::write(output, &doc).expect("Failed to save svg doc");
 }
 
 /// Create a `mandala.pdf` file.
