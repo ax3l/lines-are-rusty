@@ -1,7 +1,9 @@
 use clap::{App, Arg};
 use lines_are_rusty::LinesData;
 use std::fs::File;
+use std::io::Read;
 use std::io::{self, BufReader, BufWriter, Write};
+use std::path::Path;
 
 fn main() {
     let matches = App::new("lines-are-rusty")
@@ -10,14 +12,16 @@ fn main() {
         .author("Axel Huebl <axel.huebl@plasma.ninja>")
         .arg(
             Arg::with_name("file")
-                .help("The file to read from")
-                .required(true)
-                .index(1),
+                .help("The .rm (or .lines) file to read from. If omitted, data is expected to be piped in.")
+                .index(1)
+                .empty_values(true)
         )
         .arg(
             Arg::with_name("output")
-                .help("Output file name for rendered output. If not present, output is written to stdout.")
-                .index(2),
+                .short("o")
+                .long("output")
+                .takes_value(true)
+                .help("The file to save the rendered output to. If omitted, output is written to stdout. Required for PDF.")
         )
         .arg(
             Arg::with_name("no-auto-crop")
@@ -32,11 +36,30 @@ fn main() {
                 .help("Which colors to use for the layers. Format: L1-black,L1-gray,L1-white;...;L5-black,L5-gray,L5-white")
                 .default_value("black,gray,white;black,gray,white;black,gray,white;black,gray,white;black,gray,white")
         )
+        .arg(
+            Arg::with_name("output-type")
+                .short("t")
+                .long("to")
+                .takes_value(true)
+                .help("Output type. If present, overrides the type determined by the output file extension. Defaults to svg.")
+                .possible_values(&["svg", "pdf"])
+        )
         .get_matches();
-    let filename = matches
-        .value_of("file")
-        .expect("Expected required filename.");
     let output_filename = matches.value_of("output");
+    let output_type_string = matches.value_of("output-type").or({
+        output_filename
+            .and_then(|output_filename| Path::new(output_filename).extension())
+            .and_then(|extension| extension.to_str())
+    });
+    let output_type = match output_type_string {
+        Some(output_type_string) => match output_type_string.to_lowercase().as_ref() {
+            "svg" => OutputType::SVG,
+            "pdf" => OutputType::PDF,
+            _ => panic!("Unsupported output file extension {}", output_type_string),
+        },
+        None => OutputType::SVG,
+    };
+
     let auto_crop = !matches.is_present("no-auto-crop");
     let colors = matches.value_of("custom-colors").unwrap();
 
@@ -50,15 +73,12 @@ fn main() {
     // let max_size_file = 1024 * 1024; // 1mb, or 1024 kilobytes
     // assert!(max_size_file >= line_file.len());
 
-    let file = match File::open(filename) {
-        Ok(file) => file,
-        Err(e) => {
-            eprintln!("{}", e);
-            return;
-        }
-    };
+    let mut input = BufReader::new(match matches.value_of("file") {
+        Some(filename) => Box::new(File::open(filename).unwrap()),
+        None => Box::new(io::stdin()) as Box<dyn Read>,
+    });
 
-    let lines_data = match LinesData::parse(&mut BufReader::new(file)) {
+    let lines_data = match LinesData::parse(&mut input) {
         Ok(lines_data) => lines_data,
         Err(e) => {
             eprintln!("{}", e);
@@ -71,8 +91,22 @@ fn main() {
         None => Box::new(io::stdout()) as Box<dyn Write>,
     });
 
-    lines_are_rusty::render_svg(&mut output, &lines_data.pages[0], auto_crop, &layer_colors);
-    // lines_are_rusty::render_pdf(&format!("{}.pdf", output_filename), &[page]);
+    match output_type {
+        OutputType::SVG => {
+            lines_are_rusty::render_svg(&mut output, &lines_data.pages[0], auto_crop, &layer_colors)
+        }
+        OutputType::PDF => {
+            // Alas, the pdf-canvas crate insists on writing to a File instead of a Write
+            let pdf_filename =
+                output_filename.unwrap_or_else(|| panic!("Output file required for PDF output"));
+            lines_are_rusty::render_pdf(pdf_filename, &lines_data.pages);
+        }
+    }
 
     eprintln!("done.");
+}
+
+enum OutputType {
+    SVG,
+    PDF,
 }
