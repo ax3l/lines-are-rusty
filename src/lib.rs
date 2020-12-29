@@ -1,5 +1,10 @@
-pub mod render;
-pub use render::{render_pdf, render_svg};
+pub mod render {
+    pub mod svg;
+    pub mod pdf;
+    pub mod renderlib;
+}
+pub use render::pdf::render_pdf;
+pub use render::svg::render_svg;
 use std::error;
 use std::fmt;
 

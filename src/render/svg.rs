@@ -1,9 +1,6 @@
-use std::io::Write;
+use crate::render::renderlib::crop;
 use crate::*;
-use pdf_canvas::graphicsstate::{self, CapStyle, JoinStyle, Matrix};
-use pdf_canvas::Pdf;
-
-const BASE_LINE_WIDTH: f32 = 4.;
+use std::io::Write;
 
 // black,grey,white;red,magenta,white;blue,cyan,white;limegreen,yellow,white;darkorchid,darkorange,white
 
@@ -49,24 +46,6 @@ pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usiz
         .set("stroke-width", first_point.width * 0.8)
         .set("stroke-linecap", "round")
         .set("d", data)
-}
-
-pub fn crop(page: &Page) -> (f32, f32, f32, f32) {
-    let mut min_x = 1404_f32;
-    let mut min_y = 1872_f32;
-    let mut max_x = 0_f32;
-    let mut max_y = 0_f32;
-    for layer in page.layers.iter() {
-        for line in layer.lines.iter() {
-            for point in line.points.iter() {
-                min_x = min_x.min(point.x);
-                min_y = min_y.min(point.y);
-                max_x = max_x.max(point.x);
-                max_y = max_y.max(point.y);
-            }
-        }
-    }
-    (min_x, min_y, max_x, max_y)
 }
 
 pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_colors: &LayerColors) {
@@ -139,44 +118,4 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
     }
     let doc = doc.set("viewBox", (0, 0, max_x-min_x, max_y-min_y));
     svg::write(output, &doc).expect("Failed to save svg doc");
-}
-
-/// Create a `mandala.pdf` file.
-pub fn render_pdf(path: &str, pages: &[Page]) {
-    // Open our pdf document.
-    let mut document = Pdf::create(path).expect("Create PDF file");
-
-    // Only one page to consider.
-    let page = &pages[0];
-
-    // Render a page with something resembling a mandala on it.
-    document
-        .render_page(1404.0, 1872.0, |c| {
-            // Inverse Y coordinate system.
-            c.concat(Matrix::scale(1., -1.))?;
-            c.concat(Matrix::translate(0., -1872.))?;
-
-            c.set_stroke_color(graphicsstate::Color::gray(0))?;
-
-            for layer in &page.layers {
-                for line in &layer.lines {
-                    if line.points.is_empty() {
-                        continue;
-                    }
-                    let first_point = &line.points[0];
-                    c.move_to(first_point.x, first_point.y)?;
-                    for point in &line.points {
-                        c.set_line_width(point.pressure * BASE_LINE_WIDTH)?;
-                        c.set_line_cap_style(CapStyle::Round)?;
-                        c.set_line_join_style(JoinStyle::Round)?;
-                        c.line_to(point.x, point.y)?;
-                    }
-                    c.stroke()?;
-                }
-            }
-
-            Ok(())
-        })
-        .unwrap();
-    document.finish().unwrap();
 }
