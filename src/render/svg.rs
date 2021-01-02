@@ -33,6 +33,7 @@ pub fn render_highlighter_line(line: &Line, min_x: f32, min_y: f32, layer_id: us
         .set("stroke-linejoin", "bevel")
         .set("stroke-opacity", 0.25)
         .set("d", data)
+        .set("class", "Highlighter")
 }
 
 pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
@@ -49,6 +50,7 @@ pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usiz
         .set("stroke-width", first_point.width * WIDTH_FACTOR)
         .set("stroke-linecap", "round")
         .set("d", data)
+        .set("class", "Fineliner")
 }
 
 pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_colors: &LayerColors) {
@@ -59,19 +61,26 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
     };
     let mut doc = svg::Document::new();
     for (layer_id, layer) in page.layers.iter().enumerate() {
+        let mut layer_group = svg::node::element::Group::new()
+            .set("class", "layer");
         for line in layer.lines.iter() {
             if line.points.is_empty() {
                 continue;
             }
             let color = line_to_svg_color(&line, layer_id, layer_colors);
             match line.brush_type {
-                BrushType::Highlighter => doc = doc.add(render_highlighter_line(line, min_x, min_y, layer_id, layer_colors)),
-                BrushType::Fineliner => doc = doc.add(render_fineliner_line(line, min_x, min_y, layer_id, layer_colors)),
+                BrushType::Highlighter => layer_group = layer_group.add(render_highlighter_line(line, min_x, min_y, layer_id, layer_colors)),
+                BrushType::Fineliner => layer_group = layer_group.add(render_fineliner_line(line, min_x, min_y, layer_id, layer_colors)),
                 BrushType::EraseArea => (),
                 BrushType::Eraser => (),
                 BrushType::EraseAll => (),
                 BrushType::SelectionBrush => (),
                 _ => {
+                    let mut stroke_group = svg::node::element::Group::new()
+                        .set("fill", "none")
+                        .set("stroke", color)
+                        .set("stroke-linecap", "round")
+                        .set("class", format!("{:#?}", line.brush_type));
                     for (previous_index, point) in line.points[1..].iter().enumerate() {
                         let prev_point = &line.points[previous_index];
                         let data = svg::node::element::path::Data::new()
@@ -93,30 +102,19 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                             | BrushType::SelectionBrush => unreachable!("Should have been handled above"),
                         };
 
-                        if opacity != 1.0 {
-                            doc = doc.add(
-                                svg::node::element::Path::new()
-                                    .set("fill", "none")
-                                    .set("stroke", color)
-                                    .set("stroke-width", width * WIDTH_FACTOR)
-                                    .set("stroke-linecap", "round")
-                                    .set("stroke-opacity", opacity)
-                                    .set("d", data),
-                            );
-                        } else {
-                            doc = doc.add(
-                                svg::node::element::Path::new()
-                                    .set("fill", "none")
-                                    .set("stroke", color)
-                                    .set("stroke-width", width * WIDTH_FACTOR)
-                                    .set("stroke-linecap", "round")
-                                    .set("d", data),
-                            );
+                        let mut path = svg::node::element::Path::new()
+                            .set("stroke-width", width * WIDTH_FACTOR)
+                            .set("d", data);
+                        if opacity < 1.0 {
+                            path = path.set("stroke-opacity", opacity);
                         }
+                        stroke_group = stroke_group.add(path);
                     }
+                    layer_group = layer_group.add(stroke_group);
                 }
             }
         }
+        doc = doc.add(layer_group);
     }
     let doc = doc.set("viewBox", (0, 0, max_x-min_x, max_y-min_y));
     svg::write(output, &doc).expect("Failed to save svg doc");
