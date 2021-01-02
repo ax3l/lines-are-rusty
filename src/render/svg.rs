@@ -17,12 +17,12 @@ pub fn line_to_svg_color<'a>(line: &Line, layer_id: usize, layer_colors: &'a Lay
     }
 }
 
-pub fn render_highlighter_line(line: &Line, min_x: f32, min_y: f32, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
+pub fn render_highlighter_line(line: &Line, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
-    let mut data = svg::node::element::path::Data::new().move_to((first_point.x-min_x, first_point.y-min_y));
+    let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
     for point in line.points.iter() {
-        data = data.line_to((point.x-min_x, point.y-min_y));
+        data = data.line_to((point.x, point.y));
     }
 
     svg::node::element::Path::new()
@@ -36,12 +36,12 @@ pub fn render_highlighter_line(line: &Line, min_x: f32, min_y: f32, layer_id: us
         .set("class", "Highlighter")
 }
 
-pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
+pub fn render_fineliner_line(line: &Line, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
-    let mut data = svg::node::element::path::Data::new().move_to((first_point.x-min_x, first_point.y-min_y));
+    let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
     for point in line.points.iter() {
-        data = data.line_to((point.x-min_x, point.y-min_y));
+        data = data.line_to((point.x, point.y));
     }
 
     svg::node::element::Path::new()
@@ -54,11 +54,6 @@ pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usiz
 }
 
 pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_colors: &LayerColors) {
-    let (min_x, min_y, max_x, max_y) = if auto_crop {
-        crop(page)
-    } else {
-        (0_f32, 0_f32, 1404_f32, 1872_f32)
-    };
     let mut doc = svg::Document::new();
     for (layer_id, layer) in page.layers.iter().enumerate() {
         let mut layer_group = svg::node::element::Group::new()
@@ -69,8 +64,8 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
             }
             let color = line_to_svg_color(&line, layer_id, layer_colors);
             match line.brush_type {
-                BrushType::Highlighter => layer_group = layer_group.add(render_highlighter_line(line, min_x, min_y, layer_id, layer_colors)),
-                BrushType::Fineliner => layer_group = layer_group.add(render_fineliner_line(line, min_x, min_y, layer_id, layer_colors)),
+                BrushType::Highlighter => layer_group = layer_group.add(render_highlighter_line(line, layer_id, layer_colors)),
+                BrushType::Fineliner => layer_group = layer_group.add(render_fineliner_line(line, layer_id, layer_colors)),
                 BrushType::EraseArea => (),
                 BrushType::Eraser => (),
                 BrushType::EraseAll => (),
@@ -84,8 +79,8 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                     for (previous_index, point) in line.points[1..].iter().enumerate() {
                         let prev_point = &line.points[previous_index];
                         let data = svg::node::element::path::Data::new()
-                            .move_to((prev_point.x - min_x, prev_point.y - min_y))
-                            .line_to((point.x - min_x, point.y - min_y));
+                            .move_to((prev_point.x, prev_point.y))
+                            .line_to((point.x, point.y));
                         let (width, opacity) = match line.brush_type {
                             BrushType::BallPoint => (point.width, point.pressure.powf(5.0) + 0.7),
                             BrushType::Marker
@@ -116,6 +111,11 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
         }
         doc = doc.add(layer_group);
     }
-    let doc = doc.set("viewBox", (0, 0, max_x-min_x, max_y-min_y));
+    if auto_crop {
+        let (min_x, min_y, max_x, max_y) = crop(page);
+        doc = doc.set("viewBox", (min_x, min_y, max_x - min_x, max_y - min_y));
+    } else {
+        doc = doc.set("viewBox", (0, 0, 1404, 1872));
+    }
     svg::write(output, &doc).expect("Failed to save svg doc");
 }
