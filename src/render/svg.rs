@@ -72,8 +72,8 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                 BrushType::EraseAll => (),
                 BrushType::SelectionBrush => (),
                 _ => {
-                    let mut prev_point = &line.points[0];
-                    for point in line.points.iter() {
+                    for (previous_index, point) in line.points[1..].iter().enumerate() {
+                        let prev_point = &line.points[previous_index];
                         let data = svg::node::element::path::Data::new()
                             .move_to((prev_point.x - min_x, prev_point.y - min_y))
                             .line_to((point.x - min_x, point.y - min_y));
@@ -113,7 +113,6 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                                     .set("d", data),
                             );
                         }
-                        prev_point = point;
                     }
                 }
             }
