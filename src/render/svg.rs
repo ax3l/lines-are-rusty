@@ -79,14 +79,14 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                             .line_to((point.x - min_x, point.y - min_y));
                         let (width, opacity) = match line.brush_type {
                             BrushType::BallPoint => (point.width, point.pressure.powf(5.0) + 0.7),
-                            BrushType::Marker => (point.width, 1.0),
-                            BrushType::Fineliner => unreachable!("Should have been handled above"),
-                            BrushType::SharpPencil => (point.width, 1.0),
-                            BrushType::TiltPencil => (point.width, 1.0),
-                            BrushType::Brush => (point.width, 1.0),
-                            BrushType::Calligraphy => (point.width, 1.0),
-                            BrushType::Pen => (point.width, 1.0),
+                            BrushType::Marker
+                            | BrushType::SharpPencil
+                            | BrushType::TiltPencil
+                            | BrushType::Brush
+                            | BrushType::Calligraphy
+                            | BrushType::Pen => (point.width, 1.0),
                             BrushType::Highlighter
+                            | BrushType::Fineliner
                             | BrushType::Eraser
                             | BrushType::EraseArea
                             | BrushType::EraseAll
