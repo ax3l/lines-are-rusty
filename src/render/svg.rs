@@ -4,6 +4,8 @@ use std::io::Write;
 
 // black,grey,white;red,magenta,white;blue,cyan,white;limegreen,yellow,white;darkorchid,darkorange,white
 
+const WIDTH_FACTOR: f32 = 0.8;
+
 pub fn line_to_svg_color<'a>(line: &Line, layer_id: usize, layer_colors: &'a LayerColors) -> &'a str {
     match line.brush_type {
         BrushType::Highlighter => "rgb(240, 220, 40)",
@@ -26,8 +28,9 @@ pub fn render_highlighter_line(line: &Line, min_x: f32, min_y: f32, layer_id: us
     svg::node::element::Path::new()
         .set("fill", "none")
         .set("stroke", line_to_svg_color(line, layer_id, layer_colors))
-        .set("stroke-width", first_point.width * 0.8)
-        .set("stroke-linecap", "round")
+        .set("stroke-width", first_point.width) // no WIDTH_FACTOR used here! factor is 1
+        .set("stroke-linecap", "butt")
+        .set("stroke-linejoin", "bevel")
         .set("stroke-opacity", 0.25)
         .set("d", data)
 }
@@ -43,7 +46,7 @@ pub fn render_fineliner_line(line: &Line, min_x: f32, min_y: f32, layer_id: usiz
     svg::node::element::Path::new()
         .set("fill", "none")
         .set("stroke", line_to_svg_color(line, layer_id, layer_colors))
-        .set("stroke-width", first_point.width * 0.8)
+        .set("stroke-width", first_point.width * WIDTH_FACTOR)
         .set("stroke-linecap", "round")
         .set("d", data)
 }
@@ -77,7 +80,7 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                         let (width, opacity) = match line.brush_type {
                             BrushType::BallPoint => (point.width, point.pressure.powf(5.0) + 0.7),
                             BrushType::Marker => (point.width, 1.0),
-                            BrushType::Fineliner => panic!("Should have been handled above"),
+                            BrushType::Fineliner => unreachable!("Should have been handled above"),
                             BrushType::SharpPencil => (point.width, 1.0),
                             BrushType::TiltPencil => (point.width, 1.0),
                             BrushType::Brush => (point.width, 1.0),
@@ -87,7 +90,7 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                             | BrushType::Eraser
                             | BrushType::EraseArea
                             | BrushType::EraseAll
-                            | BrushType::SelectionBrush => panic!("Should have been handled above"),
+                            | BrushType::SelectionBrush => unreachable!("Should have been handled above"),
                         };
 
                         if opacity != 1.0 {
@@ -95,7 +98,7 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                                 svg::node::element::Path::new()
                                     .set("fill", "none")
                                     .set("stroke", color)
-                                    .set("stroke-width", width * 0.8)
+                                    .set("stroke-width", width * WIDTH_FACTOR)
                                     .set("stroke-linecap", "round")
                                     .set("stroke-opacity", opacity)
                                     .set("d", data),
@@ -105,7 +108,7 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
                                 svg::node::element::Path::new()
                                     .set("fill", "none")
                                     .set("stroke", color)
-                                    .set("stroke-width", width * 0.8)
+                                    .set("stroke-width", width * WIDTH_FACTOR)
                                     .set("stroke-linecap", "round")
                                     .set("d", data),
                             );
