@@ -1,4 +1,4 @@
-use crate::render::renderlib::line_to_css_color;
+use crate::render::renderlib::{line_to_css_color, BoundingBox};
 use crate::*;
 use std::io::Write;
 
@@ -105,7 +105,7 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
         doc = doc.add(layer_group);
     }
     if auto_crop {
-        let (min_x, min_y, max_x, max_y) = crop(page);
+        let BoundingBox {min_x, min_y, max_x, max_y} = BoundingBox::new().enclose_page(page);
         doc = doc.set("viewBox", (min_x, min_y, max_x - min_x, max_y - min_y));
     } else {
         doc = doc.set("viewBox", (0, 0, 1404, 1872));
