@@ -1,3 +1,4 @@
+use crate::{BrushType, Color, LayerColors, Line};
 use crate::Page;
 
 pub fn crop(page: &Page) -> (f32, f32, f32, f32) {
@@ -16,4 +17,20 @@ pub fn crop(page: &Page) -> (f32, f32, f32, f32) {
         }
     }
     (min_x, min_y, max_x, max_y)
+}
+
+
+pub fn line_to_css_color<'a>(
+    line: &Line,
+    layer_id: usize,
+    layer_colors: &'a LayerColors,
+) -> &'a str {
+    match line.brush_type {
+        BrushType::Highlighter => "rgb(240, 220, 40)",
+        _ => match line.color {
+            Color::Black => &layer_colors.colors[layer_id].0,
+            Color::Grey => &layer_colors.colors[layer_id].1,
+            Color::White => &layer_colors.colors[layer_id].2,
+        },
+    }
 }

@@ -1,4 +1,4 @@
-use crate::render::renderlib::crop;
+use crate::render::renderlib::line_to_css_color;
 use crate::*;
 use std::io::Write;
 
@@ -6,18 +6,7 @@ use std::io::Write;
 
 const WIDTH_FACTOR: f32 = 0.8;
 
-pub fn line_to_svg_color<'a>(line: &Line, layer_id: usize, layer_colors: &'a LayerColors) -> &'a str {
-    match line.brush_type {
-        BrushType::Highlighter => "rgb(240, 220, 40)",
-        _ => match line.color {
-            Color::Black => &layer_colors.colors[layer_id].0,
-            Color::Grey => &layer_colors.colors[layer_id].1,
-            Color::White => &layer_colors.colors[layer_id].2,
-        },
-    }
-}
-
-pub fn render_highlighter_line(line: &Line, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
+pub fn render_highlighter_line(line: &Line, color: &str) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
     let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
@@ -27,7 +16,7 @@ pub fn render_highlighter_line(line: &Line, layer_id: usize, layer_colors: &Laye
 
     svg::node::element::Path::new()
         .set("fill", "none")
-        .set("stroke", line_to_svg_color(line, layer_id, layer_colors))
+        .set("stroke", color)
         .set("stroke-width", first_point.width) // no WIDTH_FACTOR used here! factor is 1
         .set("stroke-linecap", "butt")
         .set("stroke-linejoin", "bevel")
@@ -36,7 +25,7 @@ pub fn render_highlighter_line(line: &Line, layer_id: usize, layer_colors: &Laye
         .set("class", "Highlighter")
 }
 
-pub fn render_fineliner_line(line: &Line, layer_id: usize, layer_colors: &LayerColors) -> svg::node::element::Path {
+pub fn render_fineliner_line(line: &Line, color: &str) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
     let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
@@ -46,7 +35,7 @@ pub fn render_fineliner_line(line: &Line, layer_id: usize, layer_colors: &LayerC
 
     svg::node::element::Path::new()
         .set("fill", "none")
-        .set("stroke", line_to_svg_color(line, layer_id, layer_colors))
+        .set("stroke", color)
         .set("stroke-width", first_point.width * WIDTH_FACTOR)
         .set("stroke-linecap", "round")
         .set("d", data)
@@ -62,10 +51,14 @@ pub fn render_svg(output: &mut dyn Write, page: &Page, auto_crop: bool, layer_co
             if line.points.is_empty() {
                 continue;
             }
-            let color = line_to_svg_color(&line, layer_id, layer_colors);
+            let color = line_to_css_color(&line, layer_id, layer_colors);
             match line.brush_type {
-                BrushType::Highlighter => layer_group = layer_group.add(render_highlighter_line(line, layer_id, layer_colors)),
-                BrushType::Fineliner => layer_group = layer_group.add(render_fineliner_line(line, layer_id, layer_colors)),
+                BrushType::Highlighter => {
+                    layer_group = layer_group.add(render_highlighter_line(line, color))
+                }
+                BrushType::Fineliner => {
+                    layer_group = layer_group.add(render_fineliner_line(line, color))
+                }
                 BrushType::EraseArea => (),
                 BrushType::Eraser => (),
                 BrushType::EraseAll => (),
