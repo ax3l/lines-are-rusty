@@ -7,6 +7,7 @@ pub use render::pdf::render_pdf;
 pub use render::svg::render_svg;
 use std::error;
 use std::fmt;
+use std::ops::{Add, Sub};
 
 mod parse;
 
@@ -128,6 +129,38 @@ pub struct Line {
     pub points: Vec<Point>,
 }
 
+impl Line {
+    // TODO: Make this a Result to avoid panic if index is out of range
+    fn segment_length(&self, i: usize) -> Result<f32, &str> {
+        if i + 1 >= self.points.len() {
+            Err("Line segment index out of bounds")
+        } else {
+            Ok(self.points[i].distance(&self.points[i + 1]))
+        }
+    }
+
+    fn length(&self) -> f32 {
+        let mut length = 0.0;
+        for (previous_index, point) in self.points[1..].iter().enumerate() {
+            length += point.distance(&self.points[previous_index]);
+        }
+        length
+    }
+
+    /// Average of each segment's width, weighted by the segment length.
+    /// Primarily useful for rendering to targets requiring a fixed line width.
+    fn average_width(&self) -> f32 {
+        // TODO: Are the width values of the first and second point always the same?
+        let mut average_width = 0.0;
+        let mut total_length = 0.0;
+        for (i, point) in self.points[1..].iter().enumerate() {
+            let segment_length = self.segment_length(i).unwrap_or_else(|_| unreachable!());
+            total_length += segment_length;
+            average_width += segment_length / total_length * (point.width - average_width);
+        }
+        average_width
+    }
+}
 
 #[derive(Default, Debug)]
 pub struct Point {
@@ -137,6 +170,85 @@ pub struct Point {
     pub direction: f32,
     pub width: f32,
     pub pressure: f32,
+}
+
+impl Point {
+    fn distance(&self, point: &Point) -> f32 {
+        ((self.x - point.x).powi(2) + (self.y - point.y).powi(2)).sqrt()
+    }
+}
+
+impl<'a, 'b> Sub<&'b Point> for &'a Point {
+    type Output = DirectionVec;
+
+    fn sub(self, other: &Point) -> DirectionVec {
+        DirectionVec {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl<'a, 'b> Add<&'b DirectionVec> for &'a Point {
+    type Output = Point;
+
+    fn add(self, other: &DirectionVec) -> Point {
+        Point {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            ..Default::default()
+        }
+    }
+}
+
+impl<'a, 'b> Sub<&'b DirectionVec> for &'a Point {
+    type Output = Point;
+
+    fn sub(self, other: &DirectionVec) -> Point {
+        Point {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            ..Default::default()
+        }
+    }
+}
+
+pub struct DirectionVec {
+    x: f32,
+    y: f32,
+}
+
+impl DirectionVec {
+    fn length(&self) -> f32 {
+        (self.x.powi(2) + self.y.powi(2)).sqrt()
+    }
+
+    fn normalize(mut self) -> Result<DirectionVec, &'static str> {
+        let length = self.length();
+        if length == 0.0 {
+            return Err("Can't normalize a 0-length vector");
+        }
+        self.x /= length;
+        self.y /= length;
+        Ok(self)
+    }
+
+    fn rotate_orthogonally(mut self) -> DirectionVec {
+        std::mem::swap(&mut self.x, &mut self.y);
+        self.y *= -1.0;
+        self
+    }
+}
+
+impl Add for DirectionVec {
+    type Output = DirectionVec;
+
+    fn add(self, other: DirectionVec) -> DirectionVec {
+        DirectionVec {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
 }
 
 pub struct LayerColors {
