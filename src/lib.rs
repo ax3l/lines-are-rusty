@@ -7,7 +7,7 @@ pub use render::pdf::render_pdf;
 pub use render::svg::render_svg;
 use std::error;
 use std::fmt;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 mod parse;
 
@@ -151,6 +151,10 @@ impl Line {
     /// Primarily useful for rendering to targets requiring a fixed line width.
     fn average_width(&self) -> f32 {
         // TODO: Are the width values of the first and second point always the same?
+
+        // Algorithm for weighted average see e.g. notes by Tony Finch:
+        // Incremental calculation of weighted mean and variance, chapter 4
+        // https://fanf2.user.srcf.net/hermes/doc/antiforgery/stats.pdf#page=3
         let mut average_width = 0.0;
         let mut total_length = 0.0;
         for (i, point) in self.points[1..].iter().enumerate() {
@@ -159,6 +163,18 @@ impl Line {
             average_width += segment_length / total_length * (point.width - average_width);
         }
         average_width
+    }
+
+    /// Produces the offset vectors for each line segment for creating a offset
+    /// polyline. Each offset vector indicates the direction and distance for
+    /// offsetting the line segment. The offset vector can be mirrored to get
+    /// the offset to the other side of the polyline segment.
+    fn offsets(&self, offset_distance: f32) -> Vec<DirectionVec> {
+        let points = &self.points;
+        (1..points.len() - 1).map(|i| {
+            let v = &points[i] - &points[i - 1];
+            v.rotate_orthogonally().set_length(offset_distance).unwrap_or(DirectionVec::ZERO)
+        }).collect()
     }
 }
 
@@ -213,23 +229,26 @@ impl<'a, 'b> Sub<&'b DirectionVec> for &'a Point {
     }
 }
 
+#[derive(Default)]
 pub struct DirectionVec {
     x: f32,
     y: f32,
 }
 
 impl DirectionVec {
+    const ZERO: DirectionVec = DirectionVec {x: 0.0, y: 0.0};
+
     fn length(&self) -> f32 {
         (self.x.powi(2) + self.y.powi(2)).sqrt()
     }
 
-    fn normalize(mut self) -> Result<DirectionVec, &'static str> {
-        let length = self.length();
-        if length == 0.0 {
-            return Err("Can't normalize a 0-length vector");
+    fn set_length(mut self, length: f32) -> Result<DirectionVec, &'static str> {
+        let factor = self.length() / length;
+        if factor == 0.0 {
+            return Err("Can't scale a 0-length vector");
         }
-        self.x /= length;
-        self.y /= length;
+        self.x /= factor;
+        self.y /= factor;
         Ok(self)
     }
 
@@ -247,6 +266,28 @@ impl Add for DirectionVec {
         DirectionVec {
             x: self.x + other.x,
             y: self.y + other.y,
+        }
+    }
+}
+
+impl Mul<f32> for DirectionVec {
+    type Output = DirectionVec;
+
+    fn mul(self, other: f32) -> DirectionVec {
+        DirectionVec {
+            x: self.x * other,
+            y: self.y * other,
+        }
+    }
+}
+
+impl Div<f32> for DirectionVec {
+    type Output = DirectionVec;
+
+    fn div(self, other: f32) -> DirectionVec {
+        DirectionVec {
+            x: self.x / other,
+            y: self.y / other,
         }
     }
 }
