@@ -67,6 +67,12 @@ pub enum BrushType {
     SelectionBrush,
 }
 
+impl Default for BrushType {
+    fn default() -> BrushType {
+        BrushType::Fineliner
+    }
+}
+
 impl std::convert::TryFrom<i32> for BrushType {
     type Error = String;
 
@@ -119,7 +125,13 @@ impl TryFrom<i32> for Color {
     }
 }
 
-#[derive(Debug)]
+impl Default for Color {
+    fn default() -> Color {
+        Color::Black
+    }
+}
+
+#[derive(Default, Debug)]
 pub struct Line {
     pub brush_type: BrushType,
     pub color: Color,
@@ -171,11 +183,48 @@ impl Line {
     /// the offset to the other side of the polyline segment.
     fn offsets(&self, offset_distance: f32) -> Vec<DirectionVec> {
         let points = &self.points;
-        (1..points.len() - 1).map(|i| {
-            let v = &points[i] - &points[i - 1];
-            v.rotate_orthogonally().set_length(offset_distance).unwrap_or(DirectionVec::ZERO)
-        }).collect()
+        (1..points.len())
+            .map(|i| {
+                let v = &points[i] - &points[i - 1];
+                v.rotate_orthogonally()
+                    .set_length(offset_distance)
+                    .unwrap_or(DirectionVec::ZERO)
+            })
+            .collect()
     }
+
+    fn with_points(template: Point, points: &[(f32, f32)]) -> Line {
+        Line {
+            points: points
+                .iter()
+                .map(|p| Point {
+                    x: p.0,
+                    y: p.1,
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+}
+
+#[test]
+fn test_line_offsets() {
+    let line = Line::with_points(
+        Point {
+            width: 2.0,
+            ..Default::default()
+        },
+        &vec![(0.0, 0.0), (3.0, 4.0), (6.0, 4.0)][..],
+    );
+
+    assert_eq!(
+        line.offsets(5.0),
+        vec![
+            DirectionVec { x: -4.0, y: 3.0 },
+            DirectionVec { x: 0.0, y: 5.0 }
+        ]
+    );
 }
 
 #[derive(Default, Debug)]
@@ -229,7 +278,7 @@ impl<'a, 'b> Sub<&'b DirectionVec> for &'a Point {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq)]
 pub struct DirectionVec {
     x: f32,
     y: f32,
@@ -254,7 +303,7 @@ impl DirectionVec {
 
     fn rotate_orthogonally(mut self) -> DirectionVec {
         std::mem::swap(&mut self.x, &mut self.y);
-        self.y *= -1.0;
+        self.x *= -1.0;
         self
     }
 }
