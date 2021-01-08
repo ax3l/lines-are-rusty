@@ -10,5 +10,5 @@ in
 rustPlatform.buildRustPackage rec {
   name = "lines-are-rusty";
   src = builtins.path { inherit name; path = ./.; };
-  cargoSha256 = "0b3a8q497bjv2rrb83mxf59c00mgd89wy4g10yabibbdlnsq5gqg";
+  cargoSha256 = "1yhqq9n0qi0d5mj7d701qag1i95vpyy46g5av2v1ail36pqas2gf";
 }
