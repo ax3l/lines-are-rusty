@@ -1,16 +1,14 @@
+{ sources ? import ./nix/sources.nix }:
 let
-  base-nixpkgs = import <nixpkgs> {};
-  mozillaOverlay = import (builtins.fetchTarball https://github.com/mozilla/nixpkgs-mozilla/archive/master.tar.gz);
-  nixpkgs = import <nixpkgs> { overlays = [ mozillaOverlay ]; };
+  nixpkgs = import sources.nixpkgs { overlays = [ (import sources.nixpkgs-mozilla) ]; };
   rust = (nixpkgs.rustChannelOf { channel = "nightly"; }).rust;
   rustPlatform = nixpkgs.makeRustPlatform {
     cargo = rust;
     rustc = rust;
   };
 in
-
-rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage rec {
   name = "lines-are-rusty";
-  src = ./.;
-  cargoSha256 = "0bnj1id4vbb7rhsrhnalnvh35kf04bxvhwdn051xnzp6kdi57imm";
+  src = builtins.path { inherit name; path = ./.; };
+  cargoSha256 = "1yhqq9n0qi0d5mj7d701qag1i95vpyy46g5av2v1ail36pqas2gf";
 }
