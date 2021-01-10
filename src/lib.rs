@@ -142,7 +142,6 @@ pub struct Line {
 }
 
 impl Line {
-    // TODO: Make this a Result to avoid panic if index is out of range
     fn segment_length(&self, i: usize) -> Result<f32, &str> {
         if i + 1 >= self.points.len() {
             Err("Line segment index out of bounds")
@@ -197,10 +196,11 @@ impl Line {
         Line {
             points: points
                 .iter()
-                .map(|p| Point {
-                    x: p.0,
-                    y: p.1,
-                    ..Default::default()
+                .map(|p| {
+                    let mut point = template.clone();
+                    point.x = p.0;
+                    point.y = p.1;
+                    point
                 })
                 .collect(),
             ..Default::default()
@@ -227,7 +227,7 @@ fn test_line_offsets() {
     );
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Point {
     pub x: f32,
     pub y: f32,
@@ -285,7 +285,7 @@ pub struct DirectionVec {
 }
 
 impl DirectionVec {
-    const ZERO: DirectionVec = DirectionVec {x: 0.0, y: 0.0};
+    const ZERO: DirectionVec = DirectionVec { x: 0.0, y: 0.0 };
 
     fn length(&self) -> f32 {
         (self.x.powi(2) + self.y.powi(2)).sqrt()

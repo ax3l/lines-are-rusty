@@ -58,3 +58,52 @@ pub fn line_to_css_color<'a>(
         },
     }
 }
+
+/// Creates a vector of quadrilateral coordinates enclosing each segment of the
+/// line. The length of the returned vector is always a multiple of 8 (4 points
+/// à 2 coordinates per quadrilateral.)
+pub(crate) fn segment_quads(line: &Line) -> Vec<f32> {
+    let points = &line.points;
+    let offset_distance = if points.len() > 0 {
+        points[0].width * 0.5
+    } else {
+        0.0
+    };
+
+    let offsets = line.offsets(offset_distance);
+
+    offsets.iter().enumerate().fold(
+        Vec::with_capacity(8 * (points.len() - 1)),
+        |mut coords, (i, offset)| {
+            let p1 = &points[i];
+            let p2 = &points[i + 1];
+
+            coords.extend_from_slice(&[
+                p1.x + offset.x,
+                p1.y + offset.y,
+                p2.x + offset.x,
+                p2.y + offset.y,
+                p2.x - offset.x,
+                p2.y - offset.y,
+                p1.x - offset.x,
+                p1.y - offset.y,
+            ]);
+            coords
+        },
+    )
+}
+
+#[test]
+fn test_segment_quads() {
+    let line = Line::with_points(
+        Point {
+            width: 10.0,
+            ..Default::default()
+        },
+        &vec![(0.0, 0.0), (3.0, 4.0), (6.0, 4.0)][..],
+    );
+    assert_eq!(
+        segment_quads(&line),
+        vec![-4.0, 3.0, -1.0, 7.0, 7.0, 1.0, 4.0, -3.0, 3.0, 9.0, 6.0, 9.0, 6.0, -1.0, 3.0, -1.0]
+    );
+}
