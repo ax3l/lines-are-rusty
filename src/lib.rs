@@ -5,34 +5,30 @@ pub mod render {
 }
 pub use render::pdf::render_pdf;
 pub use render::svg::render_svg;
-use std::error;
-use std::fmt;
 use std::ops::{Add, Div, Mul, Sub};
+use thiserror::Error;
 
 mod parse;
 
 use std::convert::TryFrom;
 
-#[derive(Debug, Default)]
-pub struct VersionError {
-    version_string: String,
-}
+#[derive(Error, Debug)]
+pub enum LinesError {
+    #[error("Unsupported version string: {0}")]
+    UnsupportedVersion(String),
 
-impl VersionError {
-    fn boxed(version_string: &str) -> Box<VersionError> {
-        Box::new(VersionError {
-            version_string: version_string.to_string(),
-        })
-    }
-}
+    #[error("Unknown brush type: {0}")]
+    UnknownBrush(i32),
 
-impl fmt::Display for VersionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Unsupported version string: {}", self.version_string)
-    }
-}
+    #[error("Unknown color: {0}")]
+    UnknownColor(i32),
 
-impl error::Error for VersionError {}
+    #[error(transparent)]
+    IOError(#[from] std::io::Error),
+
+    #[error(transparent)]
+    TryFromIntError(#[from] std::num::TryFromIntError),
+}
 
 #[derive(Debug, Default)]
 pub struct LinesData {
@@ -74,7 +70,7 @@ impl Default for BrushType {
 }
 
 impl std::convert::TryFrom<i32> for BrushType {
-    type Error = String;
+    type Error = LinesError;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
@@ -101,7 +97,7 @@ impl std::convert::TryFrom<i32> for BrushType {
             17 => Ok(BrushType::Fineliner),
             18 => Ok(BrushType::Highlighter),
             21 => Ok(BrushType::Calligraphy),
-            v => Err(format!("Unknown brush type: {}", v)),
+            v => Err(LinesError::UnknownBrush(v)),
         }
     }
 }
@@ -114,13 +110,14 @@ pub enum Color {
 }
 
 impl TryFrom<i32> for Color {
-    type Error = String;
+    type Error = LinesError;
+
     fn try_from(color_i: i32) -> Result<Self, Self::Error> {
         match color_i {
             0 => Ok(Color::Black),
             1 => Ok(Color::Grey),
             2 => Ok(Color::White),
-            _ => Err(format!("Unknown color: {}", color_i)),
+            _ => Err(LinesError::UnknownColor(color_i)),
         }
     }
 }

@@ -1,14 +1,13 @@
 use crate::*;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::convert::TryFrom;
-use std::error;
 use std::io;
 
 impl LinesData {
     /// Parses data from an .rm or .lines file to `LinesData`.
     /// Possible errors are `io::Error` and `VersionError`,
     /// Currently, only .rm files of version 3 and 5 are supported.
-    pub fn parse(file: &mut dyn io::Read) -> Result<LinesData, Box<dyn error::Error>> {
+    pub fn parse(file: &mut dyn io::Read) -> Result<LinesData, LinesError> {
         let mut buffer = [0; 33];
         file.read_exact(&mut buffer)?;
         let untrimmed_string = String::from_utf8_lossy(&buffer);
@@ -16,11 +15,11 @@ impl LinesData {
         let version = match version_string {
             "reMarkable lines with selections and layers" => {
                 // early version of the format that is not supported
-                return Err(VersionError::boxed(version_string));
+                return Err(LinesError::UnsupportedVersion(version_string.to_string()));
             }
             "reMarkable .lines file, version=3" => 3,
             "reMarkable .lines file, version=5" => 5,
-            _ => return Err(VersionError::boxed(version_string)),
+            _ => return Err(LinesError::UnsupportedVersion(version_string.to_string())),
         };
 
         if version >= 3 {
@@ -54,8 +53,7 @@ impl LinesDataReader<'_> {
         self.file.read_f32::<LittleEndian>()
     }
 
-    fn read_line(&mut self) -> Result<Line, Box<dyn error::Error>> {
-        // TODO verify range of values
+    fn read_line(&mut self) -> Result<Line, LinesError> {
         Ok(Line {
             brush_type: BrushType::try_from(self.read_i32()?)?,
             color: Color::try_from(self.read_i32()?)?,
@@ -66,7 +64,7 @@ impl LinesDataReader<'_> {
             } else {
                 0
             },
-            points: self.read_points()?
+            points: self.read_points()?,
         })
     }
 
@@ -86,12 +84,12 @@ impl LinesDataReader<'_> {
         })
     }
 
-    fn read_lines(&mut self) -> Result<Vec<Line>, Box<dyn error::Error>> {
+    fn read_lines(&mut self) -> Result<Vec<Line>, LinesError> {
         let num_lines = self.read_i32()?;
         (0..num_lines).map(|_| self.read_line()).collect()
     }
 
-    fn read_layers(&mut self) -> Result<Vec<Layer>, Box<dyn error::Error>> {
+    fn read_layers(&mut self) -> Result<Vec<Layer>, LinesError> {
         let num_layers = self.read_i32()?;
         (0..num_layers)
             .map(|_| {
@@ -102,7 +100,7 @@ impl LinesDataReader<'_> {
             .collect()
     }
 
-    pub fn read_pages(&mut self) -> Result<Vec<Page>, Box<dyn error::Error>> {
+    pub fn read_pages(&mut self) -> Result<Vec<Page>, LinesError> {
         // From version 3(?) on, only a single page is stored per file.
         // The number of pages is not stored in the lines file any more.
         let num_pages = if self.version >= 3 {
