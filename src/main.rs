@@ -45,6 +45,12 @@ fn main() {
                 .help("Output type. If present, overrides the type determined by the output file extension. Defaults to svg.")
                 .possible_values(&["svg", "pdf"])
         )
+        .arg(
+            Arg::with_name("debug-dump")
+            .short("d")
+            .long("debug-dump")
+            .help("When rendering SVG, write debug information about lines and points into the SVG as tooltips")
+        )
         .get_matches();
     let output_filename = matches.value_of("output");
     let output_type_string = matches.value_of("output-type").or({
@@ -84,11 +90,17 @@ fn main() {
             .collect(),
     };
 
+    let debug_dump = matches.is_present("debug-dump");
+    if debug_dump && (output_type != OutputType::SVG) {
+        eprintln!("Warning: debug-dump only has an effect when writing SVG output");
+    }
+
     let options = Options {
         output_type,
         output_filename,
         layer_colors,
         auto_crop,
+        debug_dump,
     };
 
     let mut output = BufWriter::new(match output_filename {
@@ -119,7 +131,7 @@ fn process_single_file(mut input: &mut dyn Read, mut output: &mut dyn Write, opt
 
     match opts.output_type {
         OutputType::SVG => {
-            lines_are_rusty::render_svg(output, &lines_data.pages[0], opts.auto_crop, &opts.layer_colors)
+            lines_are_rusty::render_svg(output, &lines_data.pages[0], opts.auto_crop, &opts.layer_colors, opts.debug_dump)
         }
         OutputType::PDF => {
             // Alas, the pdf-canvas crate insists on writing to a File instead of a Write
@@ -129,6 +141,7 @@ fn process_single_file(mut input: &mut dyn Read, mut output: &mut dyn Write, opt
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum OutputType {
     SVG,
     PDF,
@@ -139,6 +152,7 @@ struct Options<'a> {
     output_filename: Option<&'a str>,
     layer_colors: LayerColors,
     auto_crop: bool,
+    debug_dump: bool,
 }
 
 trait UnwrapOrExit<T> {

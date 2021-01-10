@@ -4,7 +4,11 @@ use std::io::Write;
 
 const WIDTH_FACTOR: f32 = 0.8;
 
-pub fn render_constant_width_line(line: &Line, css_color: &str) -> svg::node::element::Path {
+pub fn render_constant_width_line(
+    line: &Line,
+    css_color: &str,
+    debug_dump: bool,
+) -> svg::node::element::Path {
     let first_point = &line.points[0];
 
     let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
@@ -15,28 +19,40 @@ pub fn render_constant_width_line(line: &Line, css_color: &str) -> svg::node::el
     let mut path = svg::node::element::Path::new()
         .set("fill", "none")
         .set("d", data)
-        .set("stroke", css_color)
+        .set("color", css_color)
+        .set("stroke", "currentColor")
         .set("class", format!("{:#?}", line.brush_type));
 
     match line.brush_type {
         BrushType::Highlighter => {
-            path = path.set("stroke-width", first_point.width)
+            path = path
+                .set("stroke-width", first_point.width)
                 .set("stroke-linecap", "butt")
                 .set("stroke-opacity", 0.25);
-            }
+        }
         _ => {
-            path = path.set("stroke-width", first_point.width * WIDTH_FACTOR)
+            path = path
+                .set("stroke-width", first_point.width * WIDTH_FACTOR)
                 .set("stroke-linecap", "round");
         }
+    }
+
+    if debug_dump {
+        path = path.add(tooltip(&format!("{:#?}", line)));
     }
 
     path
 }
 
-pub fn render_variable_width_line(line: &Line, css_color: &str) -> svg::node::element::Group {
+pub fn render_variable_width_line(
+    line: &Line,
+    css_color: &str,
+    debug_dump: bool,
+) -> svg::node::element::Group {
     let mut stroke_group = svg::node::element::Group::new()
         .set("fill", "none")
-        .set("stroke", css_color)
+        .set("color", css_color)
+        .set("stroke", "currentColor")
         .set("stroke-linecap", "round")
         .set("class", format!("{:#?}", line.brush_type));
 
@@ -56,6 +72,11 @@ pub fn render_variable_width_line(line: &Line, css_color: &str) -> svg::node::el
         if opacity < 1.0 {
             path = path.set("stroke-opacity", opacity);
         }
+
+        if debug_dump {
+            path = path.add(tooltip(&format!("{:#?}\n{:#?}", prev_point, point)));
+        }
+
         stroke_group = stroke_group.add(path);
     }
     stroke_group
@@ -66,6 +87,7 @@ pub fn render_svg(
     page: &Page,
     auto_crop: bool,
     layer_colors: &LayerColors,
+    debug_dump: bool,
 ) {
     let mut doc = svg::Document::new();
     for (layer_id, layer) in page.layers.iter().enumerate() {
@@ -77,13 +99,17 @@ pub fn render_svg(
             let css_color = line_to_css_color(&line, layer_id, layer_colors);
             match line.brush_type {
                 BrushType::Highlighter | BrushType::Fineliner => {
-                    layer_group = layer_group.add(render_constant_width_line(line, css_color))
+                    layer_group =
+                        layer_group.add(render_constant_width_line(line, css_color, debug_dump))
                 }
                 BrushType::EraseArea
                 | BrushType::Eraser
                 | BrushType::EraseAll
                 | BrushType::SelectionBrush => (),
-                _ => layer_group = layer_group.add(render_variable_width_line(line, css_color)),
+                _ => {
+                    layer_group =
+                        layer_group.add(render_variable_width_line(line, css_color, debug_dump))
+                }
             }
         }
         doc = doc.add(layer_group);
@@ -99,5 +125,24 @@ pub fn render_svg(
     } else {
         doc = doc.set("viewBox", (0, 0, 1404, 1872));
     }
+    if debug_dump {
+        doc = add_debug_style(doc);
+    }
     svg::write(output, &doc).expect("Failed to save svg doc");
+}
+
+fn tooltip(tooltip_text: &str) -> svg::node::element::Title {
+    let title = svg::node::element::Title::new();
+    title.add(svg::node::Text::new(tooltip_text))
+}
+
+fn add_debug_style(svg: svg::node::element::SVG) -> svg::node::element::SVG {
+    svg.add(svg::node::element::Style::new(
+        r#"
+        path:hover {
+            filter: drop-shadow(0 0 5px #e00);
+            color: #e00;
+        }
+    "#,
+    ))
 }
