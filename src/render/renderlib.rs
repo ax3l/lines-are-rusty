@@ -19,10 +19,11 @@ impl BoundingBox {
     }
 
     pub fn enclose_point(mut self, point: &Point) -> BoundingBox {
-        self.min_x = self.min_x.min(point.x);
-        self.min_y = self.min_y.min(point.y);
-        self.max_x = self.max_x.max(point.x);
-        self.max_y = self.max_y.max(point.y);
+        let radius = 0.5 * point.width;
+        self.min_x = self.min_x.min(point.x - radius);
+        self.min_y = self.min_y.min(point.y - radius);
+        self.max_x = self.max_x.max(point.x + radius);
+        self.max_y = self.max_y.max(point.y + radius);
         self
     }
 
