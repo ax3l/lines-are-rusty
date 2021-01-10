@@ -1,8 +1,8 @@
 use clap::{App, Arg};
-use lines_are_rusty::LinesData;
-use std::fs::File;
+use lines_are_rusty::{LayerColors, LinesData};
+use std::fs::{metadata, File};
 use std::io::Read;
-use std::io::{self, BufReader, BufWriter, Write};
+use std::io::{self, BufWriter, Write};
 use std::path::Path;
 use std::process::exit;
 
@@ -84,38 +84,61 @@ fn main() {
             .collect(),
     };
 
-    // let max_size_file = 1024 * 1024; // 1mb, or 1024 kilobytes
-    // assert!(max_size_file >= line_file.len());
-
-    let mut input = BufReader::new(match matches.value_of("file") {
-        Some(filename) => Box::new(File::open(filename).unwrap_or_exit("")),
-        None => Box::new(io::stdin()) as Box<dyn Read>,
-    });
-
-    let lines_data = LinesData::parse(&mut input).unwrap_or_exit("Failed to parse lines data");
+    let options = Options {
+        output_type,
+        output_filename,
+        layer_colors,
+        auto_crop,
+    };
 
     let mut output = BufWriter::new(match output_filename {
         Some(output_filename) => Box::new(File::create(output_filename).unwrap_or_exit("")),
         None => Box::new(io::stdout()) as Box<dyn Write>,
     });
 
-    match output_type {
+    match matches.value_of("file") {
+        None => process_single_file(&mut io::stdin(), &mut output, options),
+        Some(filename) => {
+            let metadata = metadata(filename).unwrap_or_exit("");
+            if metadata.is_dir() {
+                println!("Can't process directories yet");
+                exit(1);
+            } else {
+                let mut input = File::open(filename).unwrap_or_exit("");
+                process_single_file(&mut input, &mut output, options);
+            }
+        },
+    };
+
+
+    eprintln!("done.");
+}
+
+fn process_single_file(mut input: &mut dyn Read, mut output: &mut dyn Write, opts: Options) {
+    let lines_data = LinesData::parse(&mut input).unwrap_or_exit("Failed to parse lines data");
+
+    match opts.output_type {
         OutputType::SVG => {
-            lines_are_rusty::render_svg(&mut output, &lines_data.pages[0], auto_crop, &layer_colors)
+            lines_are_rusty::render_svg(output, &lines_data.pages[0], opts.auto_crop, &opts.layer_colors)
         }
         OutputType::PDF => {
             // Alas, the pdf-canvas crate insists on writing to a File instead of a Write
-            let pdf_filename = output_filename.unwrap_or_exit("Output file needed for PDF output");
+            let pdf_filename = opts.output_filename.unwrap_or_exit("Output file needed for PDF output");
             lines_are_rusty::render_pdf(pdf_filename, &lines_data.pages);
         }
     }
-
-    eprintln!("done.");
 }
 
 enum OutputType {
     SVG,
     PDF,
+}
+
+struct Options<'a> {
+    output_type: OutputType,
+    output_filename: Option<&'a str>,
+    layer_colors: LayerColors,
+    auto_crop: bool,
 }
 
 trait UnwrapOrExit<T> {
