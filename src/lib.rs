@@ -149,11 +149,10 @@ impl Line {
     }
 
     fn length(&self) -> f32 {
-        let mut length = 0.0;
-        for (previous_index, point) in self.points[1..].iter().enumerate() {
-            length += point.distance(&self.points[previous_index]);
-        }
-        length
+        self.points.iter()
+            .zip(self.points[1..].iter())
+            .map(|(previous_point, point)| previous_point.distance(point))
+            .sum()
     }
 
     /// Average of each segment's width, weighted by the segment length.
