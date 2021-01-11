@@ -3,12 +3,13 @@ pub mod render {
     pub mod pdf;
     pub mod renderlib;
 }
+pub mod parse {
+    pub mod parse_lines;
+}
 pub use render::pdf::render_pdf;
 pub use render::svg::render_svg;
 use std::ops::{Add, Div, Mul, Sub};
 use thiserror::Error;
-
-mod parse;
 
 use std::convert::TryFrom;
 
