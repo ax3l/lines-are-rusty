@@ -135,15 +135,21 @@ fn process_single_file(mut input: &mut dyn Read, mut output: &mut dyn Write, opt
     let lines_data = LinesData::parse(&mut input).context("Failed to parse lines data")?;
 
     Ok(match opts.output_type {
-        OutputType::SVG => {
-            lines_are_rusty::render_svg(output, &lines_data.pages[0], opts.auto_crop, &opts.layer_colors, opts.debug_dump)
-        }
+        OutputType::SVG => lines_are_rusty::render_svg(
+            output,
+            &lines_data.pages[0],
+            opts.auto_crop,
+            &opts.layer_colors,
+            opts.debug_dump,
+        )
+        .context("failed to write SVG")?,
         OutputType::PDF => {
             // Alas, the pdf-canvas crate insists on writing to a File instead of a Write
             let pdf_filename = opts
                 .output_filename
                 .context("Output file needed for PDF output")?;
-            lines_are_rusty::render_pdf(pdf_filename, &lines_data.pages);
+            lines_are_rusty::render_pdf(pdf_filename, &lines_data.pages)
+                .context("failed to write pdf")?
         }
     })
 }

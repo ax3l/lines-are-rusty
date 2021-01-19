@@ -1,6 +1,6 @@
 use crate::render::renderlib::{line_to_css_color, BoundingBox};
 use crate::*;
-use std::io::Write;
+use std::io;
 
 const WIDTH_FACTOR: f32 = 0.8;
 
@@ -83,12 +83,12 @@ pub fn render_variable_width_line(
 }
 
 pub fn render_svg(
-    output: &mut dyn Write,
+    output: &mut dyn io::Write,
     page: &Page,
     auto_crop: bool,
     layer_colors: &LayerColors,
     debug_dump: bool,
-) {
+) -> io::Result<()> {
     let mut doc = svg::Document::new();
     for (layer_id, layer) in page.layers.iter().enumerate() {
         let mut layer_group = svg::node::element::Group::new().set("class", "layer");
@@ -128,7 +128,7 @@ pub fn render_svg(
     if debug_dump {
         doc = add_debug_style(doc);
     }
-    svg::write(output, &doc).expect("Failed to save svg doc");
+    svg::write(output, &doc)
 }
 
 fn tooltip(tooltip_text: &str) -> svg::node::element::Title {

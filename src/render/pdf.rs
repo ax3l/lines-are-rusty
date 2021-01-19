@@ -1,10 +1,12 @@
+use std::io;
+
 use crate::*;
 use pdf_canvas::graphicsstate::{self, CapStyle, JoinStyle, Matrix};
 use pdf_canvas::Pdf;
 
 const BASE_LINE_WIDTH: f32 = 4.;
 
-pub fn render_pdf(path: &str, pages: &[Page]) {
+pub fn render_pdf(path: &str, pages: &[Page]) -> io::Result<()> {
     // Open our pdf document.
     let mut document = Pdf::create(path).expect("Create PDF file");
 
@@ -37,7 +39,7 @@ pub fn render_pdf(path: &str, pages: &[Page]) {
             }
 
             Ok(())
-        })
-        .unwrap();
-    document.finish().unwrap();
+        })?;
+    document.finish()?;
+    Ok(())
 }
