@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use clap::{App, Arg};
 use lines_are_rusty::{LayerColors, LinesData};
 use std::fs::{metadata, File};
@@ -6,7 +7,7 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 use std::process::exit;
 
-fn main() {
+fn main() -> Result<()> {
     let matches = App::new("lines-are-rusty")
         .version("0.1")
         .about("Converts lines files from .rm to SVG.")
@@ -104,41 +105,47 @@ fn main() {
     };
 
     let mut output = BufWriter::new(match output_filename {
-        Some(output_filename) => Box::new(File::create(output_filename).unwrap_or_exit("")),
+        Some(output_filename) => Box::new(
+            File::create(output_filename)
+                .context(format!("Can't create {}", output_filename))?,
+        ),
         None => Box::new(io::stdout()) as Box<dyn Write>,
     });
 
     match matches.value_of("file") {
-        None => process_single_file(&mut io::stdin(), &mut output, options),
+        None => process_single_file(&mut io::stdin(), &mut output, options)?,
         Some(filename) => {
-            let metadata = metadata(filename).unwrap_or_exit("");
+            let metadata = metadata(filename).context(format!("Can't access input file {}", filename))?;
             if metadata.is_dir() {
                 println!("Can't process directories yet");
                 exit(1);
             } else {
-                let mut input = File::open(filename).unwrap_or_exit("");
-                process_single_file(&mut input, &mut output, options);
+                let mut input = File::open(filename).context(format!("Can't open input file {}", filename))?;
+                process_single_file(&mut input, &mut output, options)?;
             }
         },
     };
 
-
     eprintln!("done.");
+
+    Ok(())
 }
 
-fn process_single_file(mut input: &mut dyn Read, mut output: &mut dyn Write, opts: Options) {
-    let lines_data = LinesData::parse(&mut input).unwrap_or_exit("Failed to parse lines data");
+fn process_single_file(mut input: &mut dyn Read, mut output: &mut dyn Write, opts: Options) -> Result<()> {
+    let lines_data = LinesData::parse(&mut input).context("Failed to parse lines data")?;
 
-    match opts.output_type {
+    Ok(match opts.output_type {
         OutputType::SVG => {
             lines_are_rusty::render_svg(output, &lines_data.pages[0], opts.auto_crop, &opts.layer_colors, opts.debug_dump)
         }
         OutputType::PDF => {
             // Alas, the pdf-canvas crate insists on writing to a File instead of a Write
-            let pdf_filename = opts.output_filename.unwrap_or_exit("Output file needed for PDF output");
+            let pdf_filename = opts
+                .output_filename
+                .context("Output file needed for PDF output")?;
             lines_are_rusty::render_pdf(pdf_filename, &lines_data.pages);
         }
-    }
+    })
 }
 
 #[derive(Debug, PartialEq)]
@@ -153,29 +160,4 @@ struct Options<'a> {
     layer_colors: LayerColors,
     auto_crop: bool,
     debug_dump: bool,
-}
-
-trait UnwrapOrExit<T> {
-    fn unwrap_or_exit(self, message: &str) -> T;
-}
-
-impl<T, E: std::fmt::Display> UnwrapOrExit<T> for Result<T, E> {
-    fn unwrap_or_exit(self, message: &str) -> T {
-        match self {
-            Ok(val) => val,
-            Err(e) => {
-                eprintln!("{}\n{}", message, e);
-                exit(1);
-            }
-        }
-    }
-}
-
-impl<T> UnwrapOrExit<T> for Option<T> {
-    fn unwrap_or_exit(self, message: &str) -> T {
-        self.unwrap_or_else(|| {
-            eprintln!("{}", message);
-            exit(1)
-        })
-    }
 }
