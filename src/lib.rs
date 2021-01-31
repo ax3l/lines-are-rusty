@@ -338,6 +338,73 @@ impl Div<f32> for DirectionVec {
     }
 }
 
+// A PDF style 2D affine transformation matrix [a b c d e f].
+// PDF omits the third column of the matrix that in full would look like:
+// [ a b 0 ]
+// [ c d 0 ]
+// [ e f 1 ]
+pub struct Matrix([f32; 6]);
+
+impl Mul<Matrix> for Matrix {
+    type Output = Matrix;
+
+    fn mul(self, rhs: Matrix) -> Matrix {
+        let mut result: [f32; 6] = [0.0; 6];
+        for row in 0..2 {
+            for col in 0..3 {
+                let mut x = 0.0;
+                for i in 0..2 {
+                    x += self.0[row + 2 * i] * rhs.0[2 * col + i];
+                }
+                result[2 * col + row] = x;
+            }
+        }
+        result[4] += self.0[4];
+        result[5] += self.0[5];
+
+        Matrix(result)
+    }
+}
+
+#[test]
+fn test_matrix_mul() {
+    let a = Matrix([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let b = Matrix([2.0, 1.0, 3.0, 2.0, 4.0, 3.0]);
+
+    assert_eq!([5.0, 8.0, 9.0, 14.0, 18.0, 26.0], (a * b).0,);
+}
+
+impl Mul<[f32; 2]> for Matrix {
+    type Output = [f32; 2];
+
+    fn mul(self, point: [f32; 2]) -> [f32; 2] {
+        [
+            self.0[0] * point[0] + self.0[2] * point[1] + self.0[4],
+            self.0[1] * point[0] + self.0[3] * point[1] + self.0[5],
+        ]
+    }
+}
+
+impl Mul<Point> for Matrix {
+    type Output = [f32; 2];
+
+    fn mul(self, point: Point) -> [f32; 2] {
+        self * [point.x, point.y]
+    }
+}
+
+#[test]
+fn test_matrix_point_mul() {
+    let m = Matrix([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let p = Point {
+        x: 2.0,
+        y: 1.0,
+        ..Default::default()
+    };
+
+    assert_eq!([10.0, 14.0], m * p);
+}
+
 pub struct LayerColors {
     pub colors: Vec<(String, String, String)>,
 }
