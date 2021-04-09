@@ -1,12 +1,13 @@
+use anyhow::{Context, Result};
 use clap::{App, Arg};
-use lines_are_rusty::LinesData;
-use std::fs::File;
+use lines_are_rusty::{LayerColors, LinesData};
+use std::fs::{metadata, File};
 use std::io::Read;
-use std::io::{self, BufReader, BufWriter, Write};
+use std::io::{self, BufWriter, Write};
 use std::path::Path;
 use std::process::exit;
 
-fn main() {
+fn main() -> Result<()> {
     let matches = App::new("lines-are-rusty")
         .version("0.1")
         .about("Converts lines files from .rm to SVG.")
@@ -44,6 +45,12 @@ fn main() {
                 .takes_value(true)
                 .help("Output type. If present, overrides the type determined by the output file extension. Defaults to svg.")
                 .possible_values(&["svg", "pdf"])
+        )
+        .arg(
+            Arg::with_name("debug-dump")
+            .short("d")
+            .long("debug-dump")
+            .help("When rendering SVG, write debug information about lines and points into the SVG as tooltips")
         )
         .get_matches();
     let output_filename = matches.value_of("output");
@@ -84,61 +91,79 @@ fn main() {
             .collect(),
     };
 
-    // let max_size_file = 1024 * 1024; // 1mb, or 1024 kilobytes
-    // assert!(max_size_file >= line_file.len());
+    let debug_dump = matches.is_present("debug-dump");
+    if debug_dump && (output_type != OutputType::SVG) {
+        eprintln!("Warning: debug-dump only has an effect when writing SVG output");
+    }
 
-    let mut input = BufReader::new(match matches.value_of("file") {
-        Some(filename) => Box::new(File::open(filename).unwrap_or_exit("")),
-        None => Box::new(io::stdin()) as Box<dyn Read>,
-    });
-
-    let lines_data = LinesData::parse(&mut input).unwrap_or_exit("Failed to parse lines data");
+    let options = Options {
+        output_type,
+        output_filename,
+        layer_colors,
+        auto_crop,
+        debug_dump,
+    };
 
     let mut output = BufWriter::new(match output_filename {
-        Some(output_filename) => Box::new(File::create(output_filename).unwrap_or_exit("")),
+        Some(output_filename) => Box::new(
+            File::create(output_filename)
+                .context(format!("Can't create {}", output_filename))?,
+        ),
         None => Box::new(io::stdout()) as Box<dyn Write>,
     });
 
-    match output_type {
-        OutputType::SVG => {
-            lines_are_rusty::render_svg(&mut output, &lines_data.pages[0], auto_crop, &layer_colors)
-        }
-        OutputType::PDF => {
-            // Alas, the pdf-canvas crate insists on writing to a File instead of a Write
-            let pdf_filename = output_filename.unwrap_or_exit("Output file needed for PDF output");
-            lines_are_rusty::render_pdf(pdf_filename, &lines_data.pages);
-        }
-    }
+    match matches.value_of("file") {
+        None => process_single_file(&mut io::stdin(), &mut output, options)?,
+        Some(filename) => {
+            let metadata = metadata(filename).context(format!("Can't access input file {}", filename))?;
+            if metadata.is_dir() {
+                println!("Can't process directories yet");
+                exit(1);
+            } else {
+                let mut input = File::open(filename).context(format!("Can't open input file {}", filename))?;
+                process_single_file(&mut input, &mut output, options)?;
+            }
+        },
+    };
 
     eprintln!("done.");
+
+    Ok(())
 }
 
+fn process_single_file(mut input: &mut dyn Read, mut output: &mut dyn Write, opts: Options) -> Result<()> {
+    let lines_data = LinesData::parse(&mut input).context("Failed to parse lines data")?;
+
+    Ok(match opts.output_type {
+        OutputType::SVG => lines_are_rusty::render_svg(
+            output,
+            &lines_data.pages[0],
+            opts.auto_crop,
+            &opts.layer_colors,
+            opts.debug_dump,
+        )
+        .context("failed to write SVG")?,
+        OutputType::PDF => {
+            // Alas, the pdf-canvas crate insists on writing to a File instead of a Write
+            let pdf_filename = opts
+                .output_filename
+                .context("Output file needed for PDF output")?;
+            lines_are_rusty::render_pdf(pdf_filename, &lines_data.pages)
+                .context("failed to write pdf")?
+        }
+    })
+}
+
+#[derive(Debug, PartialEq)]
 enum OutputType {
     SVG,
     PDF,
 }
 
-trait UnwrapOrExit<T> {
-    fn unwrap_or_exit(self, message: &str) -> T;
-}
-
-impl<T, E: std::fmt::Display> UnwrapOrExit<T> for Result<T, E> {
-    fn unwrap_or_exit(self, message: &str) -> T {
-        match self {
-            Ok(val) => val,
-            Err(e) => {
-                eprintln!("{}\n{}", message, e);
-                exit(1);
-            }
-        }
-    }
-}
-
-impl<T> UnwrapOrExit<T> for Option<T> {
-    fn unwrap_or_exit(self, message: &str) -> T {
-        self.unwrap_or_else(|| {
-            eprintln!("{}", message);
-            exit(1)
-        })
-    }
+struct Options<'a> {
+    output_type: OutputType,
+    output_filename: Option<&'a str>,
+    layer_colors: LayerColors,
+    auto_crop: bool,
+    debug_dump: bool,
 }
