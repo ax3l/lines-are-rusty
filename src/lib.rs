@@ -1,7 +1,7 @@
 pub mod render {
-    pub mod svg;
     pub mod pdf;
     pub mod renderlib;
+    pub mod svg;
 }
 pub mod parse {
     pub mod parse_lines;
@@ -149,7 +149,8 @@ impl Line {
     }
 
     fn length(&self) -> f32 {
-        self.points.iter()
+        self.points
+            .iter()
             .zip(self.points[1..].iter())
             .map(|(previous_point, point)| previous_point.distance(point))
             .sum()
@@ -407,4 +408,12 @@ fn test_matrix_point_mul() {
 
 pub struct LayerColors {
     pub colors: Vec<(String, String, String)>,
+}
+
+impl Default for LayerColors {
+    fn default() -> Self {
+        Self {
+            colors: vec![("black".to_string(), "grey".to_string(), "white".to_string())],
+        }
+    }
 }
