@@ -28,6 +28,7 @@ pub fn render_constant_width_line(
             path = path
                 .set("stroke-width", first_point.width)
                 .set("stroke-linecap", "butt")
+                .set("stroke-linejoin", "round")
                 .set("stroke-opacity", 0.25);
         }
         _ => {
