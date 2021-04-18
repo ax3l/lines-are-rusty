@@ -20,6 +20,7 @@ pub fn render_constant_width_line(
         .set("fill", "none")
         .set("d", data)
         .set("color", css_color)
+        .set("stroke-linejoin", "round")
         .set("stroke", "currentColor")
         .set("class", format!("{:#?}", line.brush_type));
 
@@ -28,7 +29,6 @@ pub fn render_constant_width_line(
             path = path
                 .set("stroke-width", first_point.width)
                 .set("stroke-linecap", "butt")
-                .set("stroke-linejoin", "round")
                 .set("stroke-opacity", 0.25);
         }
         _ => {
