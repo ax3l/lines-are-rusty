@@ -46,9 +46,11 @@ impl BoundingBox {
 
 pub fn line_to_css_color<'a>(
     line: &Line,
-    layer_id: usize,
+    mut layer_id: usize,
     layer_colors: &'a LayerColors,
 ) -> &'a str {
+    // If no layer color is provided for this layer, default to the last layer we have colors for.
+    layer_id = layer_id.min(layer_colors.colors.len() - 1);
     match line.brush_type {
         BrushType::Highlighter => "rgb(240, 220, 40)",
         _ => match line.color {
