@@ -27,13 +27,10 @@ impl LinesData {
             file.read_exact(&mut [0; 10])?;
         }
 
-        let mut reader = LinesDataReader {
-            file: file,
-            version: version,
-        };
+        let mut reader = LinesDataReader { file, version };
 
         Ok(LinesData {
-            version: version,
+            version,
             pages: reader.read_pages()?,
         })
     }

@@ -97,7 +97,7 @@ pub fn render_svg(
             if line.points.is_empty() {
                 continue;
             }
-            let css_color = line_to_css_color(&line, layer_id, layer_colors);
+            let css_color = line_to_css_color(line, layer_id, layer_colors);
             match line.brush_type {
                 BrushType::Highlighter | BrushType::Fineliner => {
                     layer_group =
