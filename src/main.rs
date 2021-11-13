@@ -47,6 +47,13 @@ fn main() -> Result<()> {
                 .possible_values(&["svg", "pdf"])
         )
         .arg(
+            Arg::with_name("distance-threshold")
+                .long("distance-threshold")
+                .takes_value(true)
+                .help("Threshold of distance between points, lower values produce higher fidelity renderings at the cost of file sizes")
+                .default_value("2.0")
+        )
+        .arg(
             Arg::with_name("debug-dump")
             .short("d")
             .long("debug-dump")
@@ -90,6 +97,12 @@ fn main() -> Result<()> {
             .collect(),
     };
 
+    let distance_threshold: f32 = matches
+        .value_of("distance-threshold")
+        .expect("Failed to read distance threshold")
+        .parse()
+        .expect("Distance threshold not a valud f32");
+
     let debug_dump = matches.is_present("debug-dump");
     if debug_dump && (output_type != OutputType::Svg) {
         eprintln!("Warning: debug-dump only has an effect when writing SVG output");
@@ -100,6 +113,7 @@ fn main() -> Result<()> {
         output_filename,
         layer_colors,
         auto_crop,
+        distance_threshold,
         debug_dump,
     };
 
@@ -144,6 +158,7 @@ fn process_single_file(
             &lines_data.pages[0],
             opts.auto_crop,
             &opts.layer_colors,
+            opts.distance_threshold,
             opts.debug_dump,
         )
         .context("failed to write SVG")?,
@@ -170,5 +185,6 @@ struct Options<'a> {
     output_filename: Option<&'a str>,
     layer_colors: LayerColors,
     auto_crop: bool,
+    distance_threshold: f32,
     debug_dump: bool,
 }

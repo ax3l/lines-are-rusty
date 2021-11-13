@@ -7,13 +7,26 @@ const WIDTH_FACTOR: f32 = 0.8;
 pub fn render_constant_width_line(
     line: &Line,
     css_color: &str,
+    distance_threshold: f32,
     debug_dump: bool,
 ) -> svg::node::element::Path {
-    let first_point = &line.points[0];
+    let mut point_iter = line.points.iter().enumerate();
 
-    let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
-    for point in line.points.iter() {
+    let mut prev_point = if let Some((_, p)) = point_iter.next() {
+        p
+    } else {
+        return svg::node::element::Path::new();
+    };
+
+    let mut data = svg::node::element::path::Data::new().move_to((prev_point.x, prev_point.y));
+    for (idx, point) in point_iter {
+        let dist = point - prev_point;
+        let is_last_point = idx + 1 == line.points.len();
+        if dist.length() < distance_threshold && !is_last_point {
+            continue;
+        }
         data = data.line_to((point.x, point.y));
+        prev_point = point;
     }
 
     let mut path = svg::node::element::Path::new()
@@ -27,13 +40,13 @@ pub fn render_constant_width_line(
     match line.brush_type {
         BrushType::Highlighter => {
             path = path
-                .set("stroke-width", first_point.width)
+                .set("stroke-width", prev_point.width)
                 .set("stroke-linecap", "butt")
                 .set("stroke-opacity", 0.25);
         }
         _ => {
             path = path
-                .set("stroke-width", first_point.width * WIDTH_FACTOR)
+                .set("stroke-width", prev_point.width * WIDTH_FACTOR)
                 .set("stroke-linecap", "round");
         }
     }
@@ -48,6 +61,7 @@ pub fn render_constant_width_line(
 pub fn render_variable_width_line(
     line: &Line,
     css_color: &str,
+    distance_threshold: f32,
     debug_dump: bool,
 ) -> svg::node::element::Group {
     let mut stroke_group = svg::node::element::Group::new()
@@ -57,11 +71,27 @@ pub fn render_variable_width_line(
         .set("stroke-linecap", "round")
         .set("class", format!("{:#?}", line.brush_type));
 
-    for (previous_index, point) in line.points[1..].iter().enumerate() {
-        let prev_point = &line.points[previous_index];
+    let mut point_iter = line.points.iter().enumerate();
+
+    let mut prev_point = if let Some((_, p)) = point_iter.next() {
+        p
+    } else {
+        return svg::node::element::Group::new();
+    };
+
+    for (idx, point) in point_iter {
+        let dist = point - prev_point;
+        let is_last_point = idx + 1 == line.points.len();
+        if dist.length() < distance_threshold && !is_last_point {
+            continue;
+        }
+
         let data = svg::node::element::path::Data::new()
             .move_to((prev_point.x, prev_point.y))
             .line_to((point.x, point.y));
+
+        prev_point = point;
+
         let opacity = match line.brush_type {
             BrushType::BallPoint => point.pressure.powf(5.0) + 0.7,
             _ => 1.0,
@@ -88,28 +118,34 @@ pub fn render_svg(
     page: &Page,
     auto_crop: bool,
     layer_colors: &LayerColors,
+    distance_threshold: f32,
     debug_dump: bool,
 ) -> io::Result<()> {
     let mut doc = svg::Document::new();
     for (layer_id, layer) in page.layers.iter().enumerate() {
         let mut layer_group = svg::node::element::Group::new().set("class", "layer");
         for line in layer.lines.iter() {
-            if line.points.is_empty() {
-                continue;
-            }
             let css_color = line_to_css_color(line, layer_id, layer_colors);
-            match line.brush_type {
+            match &line.brush_type {
                 BrushType::Highlighter | BrushType::Fineliner => {
-                    layer_group =
-                        layer_group.add(render_constant_width_line(line, css_color, debug_dump))
+                    layer_group = layer_group.add(render_constant_width_line(
+                        line,
+                        css_color,
+                        distance_threshold,
+                        debug_dump,
+                    ))
                 }
                 BrushType::EraseArea
                 | BrushType::Eraser
                 | BrushType::EraseAll
                 | BrushType::SelectionBrush => (),
                 _ => {
-                    layer_group =
-                        layer_group.add(render_variable_width_line(line, css_color, debug_dump))
+                    layer_group = layer_group.add(render_variable_width_line(
+                        line,
+                        css_color,
+                        distance_threshold,
+                        debug_dump,
+                    ))
                 }
             }
         }
