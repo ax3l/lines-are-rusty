@@ -66,10 +66,10 @@ pub fn line_to_css_color<'a>(
 /// à 2 coordinates per quadrilateral.)
 pub(crate) fn segment_quads(line: &Line) -> Vec<f32> {
     let points = &line.points;
-    let offset_distance = if points.len() > 0 {
-        points[0].width * 0.5
-    } else {
+    let offset_distance = if points.is_empty() {
         0.0
+    } else {
+        points[0].width * 0.5
     };
 
     let offsets = line.offsets(offset_distance);

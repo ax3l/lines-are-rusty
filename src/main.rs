@@ -61,16 +61,15 @@ fn main() -> Result<()> {
     });
     let output_type = match output_type_string {
         Some(output_type_string) => match output_type_string.to_lowercase().as_ref() {
-            "svg" => OutputType::SVG,
-            "pdf" => OutputType::PDF,
+            "svg" => OutputType::Svg,
+            "pdf" => OutputType::Pdf,
             _ => {
                 eprintln!("Unsupported output file extension {}", output_type_string);
                 exit(1);
             }
         },
-        None => OutputType::SVG,
+        None => OutputType::Svg,
     };
-
 
     let auto_crop = !matches.is_present("no-auto-crop");
     let colors = matches
@@ -79,9 +78,9 @@ fn main() -> Result<()> {
 
     let layer_colors = lines_are_rusty::LayerColors {
         colors: colors
-            .split(";")
+            .split(';')
             .map(|layer| {
-                let c = layer.split(",").collect::<Vec<&str>>();
+                let c = layer.split(',').collect::<Vec<&str>>();
                 if c.len() != 3 {
                     eprintln!("Expected 3 colors per layer. Found: {}", layer);
                     exit(1);
@@ -92,7 +91,7 @@ fn main() -> Result<()> {
     };
 
     let debug_dump = matches.is_present("debug-dump");
-    if debug_dump && (output_type != OutputType::SVG) {
+    if debug_dump && (output_type != OutputType::Svg) {
         eprintln!("Warning: debug-dump only has an effect when writing SVG output");
     }
 
@@ -106,8 +105,7 @@ fn main() -> Result<()> {
 
     let mut output = BufWriter::new(match output_filename {
         Some(output_filename) => Box::new(
-            File::create(output_filename)
-                .context(format!("Can't create {}", output_filename))?,
+            File::create(output_filename).context(format!("Can't create {}", output_filename))?,
         ),
         None => Box::new(io::stdout()) as Box<dyn Write>,
     });
@@ -115,15 +113,17 @@ fn main() -> Result<()> {
     match matches.value_of("file") {
         None => process_single_file(&mut io::stdin(), &mut output, options)?,
         Some(filename) => {
-            let metadata = metadata(filename).context(format!("Can't access input file {}", filename))?;
+            let metadata =
+                metadata(filename).context(format!("Can't access input file {}", filename))?;
             if metadata.is_dir() {
                 println!("Can't process directories yet");
                 exit(1);
             } else {
-                let mut input = File::open(filename).context(format!("Can't open input file {}", filename))?;
+                let mut input =
+                    File::open(filename).context(format!("Can't open input file {}", filename))?;
                 process_single_file(&mut input, &mut output, options)?;
             }
-        },
+        }
     };
 
     eprintln!("done.");
@@ -131,11 +131,15 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn process_single_file(mut input: &mut dyn Read, output: &mut dyn Write, opts: Options) -> Result<()> {
+fn process_single_file(
+    mut input: &mut dyn Read,
+    output: &mut dyn Write,
+    opts: Options,
+) -> Result<()> {
     let lines_data = LinesData::parse(&mut input).context("Failed to parse lines data")?;
 
-    Ok(match opts.output_type {
-        OutputType::SVG => lines_are_rusty::render_svg(
+    match opts.output_type {
+        OutputType::Svg => lines_are_rusty::render_svg(
             output,
             &lines_data.pages[0],
             opts.auto_crop,
@@ -143,7 +147,7 @@ fn process_single_file(mut input: &mut dyn Read, output: &mut dyn Write, opts: O
             opts.debug_dump,
         )
         .context("failed to write SVG")?,
-        OutputType::PDF => {
+        OutputType::Pdf => {
             // Alas, the pdf-canvas crate insists on writing to a File instead of a Write
             let pdf_filename = opts
                 .output_filename
@@ -151,13 +155,14 @@ fn process_single_file(mut input: &mut dyn Read, output: &mut dyn Write, opts: O
             lines_are_rusty::render_pdf(pdf_filename, &lines_data.pages)
                 .context("failed to write pdf")?
         }
-    })
+    }
+    Ok(())
 }
 
 #[derive(Debug, PartialEq)]
 enum OutputType {
-    SVG,
-    PDF,
+    Svg,
+    Pdf,
 }
 
 struct Options<'a> {
