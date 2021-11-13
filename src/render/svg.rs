@@ -9,10 +9,16 @@ pub fn render_constant_width_line(
     css_color: &str,
     debug_dump: bool,
 ) -> svg::node::element::Path {
-    let first_point = &line.points[0];
+    let mut point_iter = line.points.iter();
+
+    let first_point = if let Some(p) = point_iter.next() {
+        p
+    } else {
+        return svg::node::element::Path::new();
+    };
 
     let mut data = svg::node::element::path::Data::new().move_to((first_point.x, first_point.y));
-    for point in line.points.iter() {
+    for point in point_iter {
         data = data.line_to((point.x, point.y));
     }
 
