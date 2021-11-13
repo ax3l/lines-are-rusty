@@ -131,7 +131,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn process_single_file(mut input: &mut dyn Read, mut output: &mut dyn Write, opts: Options) -> Result<()> {
+fn process_single_file(mut input: &mut dyn Read, output: &mut dyn Write, opts: Options) -> Result<()> {
     let lines_data = LinesData::parse(&mut input).context("Failed to parse lines data")?;
 
     Ok(match opts.output_type {
