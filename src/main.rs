@@ -26,10 +26,9 @@ fn main() -> Result<()> {
                 .help("The file to save the rendered output to. If omitted, output is written to stdout. Required for PDF.")
         )
         .arg(
-            Arg::with_name("no-auto-crop")
-                .short("n")
-                .long("no-crop")
-                .help("Don't crop the page to fit the content")
+            Arg::with_name("auto-crop")
+                .long("crop")
+                .help("Crop the page to fit the content")
         )
         .arg(
             Arg::with_name("custom-colors")
@@ -45,6 +44,12 @@ fn main() -> Result<()> {
                 .takes_value(true)
                 .help("Output type. If present, overrides the type determined by the output file extension. Defaults to svg.")
                 .possible_values(&["svg", "pdf"])
+        )
+        .arg(
+            Arg::with_name("template")
+                .long("template")
+                .takes_value(true)
+                .help("Page template name")
         )
         .arg(
             Arg::with_name("distance-threshold")
@@ -78,7 +83,7 @@ fn main() -> Result<()> {
         None => OutputType::Svg,
     };
 
-    let auto_crop = !matches.is_present("no-auto-crop");
+    let auto_crop = matches.is_present("auto-crop");
     let colors = matches
         .value_of("custom-colors")
         .unwrap_or_else(|| unreachable!());
@@ -101,7 +106,9 @@ fn main() -> Result<()> {
         .value_of("distance-threshold")
         .expect("Failed to read distance threshold")
         .parse()
-        .expect("Distance threshold not a valud f32");
+        .expect("Distance threshold not a valid f32");
+
+    let template: Option<&str> = matches.value_of("template");
 
     let debug_dump = matches.is_present("debug-dump");
     if debug_dump && (output_type != OutputType::Svg) {
@@ -114,6 +121,7 @@ fn main() -> Result<()> {
         layer_colors,
         auto_crop,
         distance_threshold,
+        template,
         debug_dump,
     };
 
@@ -159,6 +167,7 @@ fn process_single_file(
             opts.auto_crop,
             &opts.layer_colors,
             opts.distance_threshold,
+            opts.template,
             opts.debug_dump,
         )
         .context("failed to write SVG")?,
@@ -186,5 +195,6 @@ struct Options<'a> {
     layer_colors: LayerColors,
     auto_crop: bool,
     distance_threshold: f32,
+    template: Option<&'a str>,
     debug_dump: bool,
 }

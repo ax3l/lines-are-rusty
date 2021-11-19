@@ -1,5 +1,6 @@
 use crate::render::renderlib::{line_to_css_color, BoundingBox};
-use crate::*;
+use crate::render::templates;
+use crate::{BrushType, LayerColors, Line, Page, Result};
 use std::io;
 
 const WIDTH_FACTOR: f32 = 0.8;
@@ -42,7 +43,7 @@ pub fn render_constant_width_line(
             path = path
                 .set("stroke-width", prev_point.width)
                 .set("stroke-linecap", "butt")
-                .set("stroke-opacity", 0.25);
+                .set("stroke-opacity", 0.25f32);
         }
         _ => {
             path = path
@@ -119,8 +120,9 @@ pub fn render_svg(
     auto_crop: bool,
     layer_colors: &LayerColors,
     distance_threshold: f32,
+    template: Option<&str>,
     debug_dump: bool,
-) -> io::Result<()> {
+) -> Result<()> {
     let mut doc = svg::Document::new();
     for (layer_id, layer) in page.layers.iter().enumerate() {
         let mut layer_group = svg::node::element::Group::new().set("class", "layer");
@@ -158,14 +160,36 @@ pub fn render_svg(
             max_x,
             max_y,
         } = BoundingBox::new().enclose_page(page);
-        doc = doc.set("viewBox", (min_x, min_y, max_x - min_x, max_y - min_y));
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+        doc = doc
+            .set("viewBox", (min_x, min_y, width, height))
+            .set("width", width)
+            .set("height", height);
     } else {
-        doc = doc.set("viewBox", (0, 0, 1404, 1872));
+        let width = 1404;
+        let height = 1872;
+        doc = doc
+            .set("viewBox", (0, 0, width, height))
+            .set("width", width)
+            .set("height", height);
     }
     if debug_dump {
         doc = add_debug_style(doc);
     }
-    svg::write(output, &doc)
+
+    if let Some(template) = template {
+        // We splice the template snippet into the generated SVG
+        let template_snippet = templates::template_snippet(template)?;
+        let doc_str: String = doc.to_string();
+        let doc_body_start = doc_str.find(">").expect("Missing closing tag") + 1;
+        output.write_all(doc_str[..doc_body_start].as_bytes())?;
+        output.write_all(template_snippet.as_bytes())?;
+        output.write_all(doc_str[doc_body_start..].as_bytes())?;
+    } else {
+        svg::write(output, &doc)?;
+    }
+    Ok(())
 }
 
 fn tooltip(tooltip_text: &str) -> svg::node::element::Title {
