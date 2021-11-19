@@ -1,7 +1,10 @@
+#![feature(iter_intersperse)]
+
 pub mod render {
     pub mod pdf;
     pub mod renderlib;
     pub mod svg;
+    pub mod templates;
 }
 pub mod parse {
     pub mod parse_lines;
@@ -14,7 +17,7 @@ use thiserror::Error;
 use std::convert::TryFrom;
 
 #[derive(Error, Debug)]
-pub enum LinesError {
+pub enum Error {
     #[error("Unsupported version string: {0}")]
     UnsupportedVersion(String),
 
@@ -24,12 +27,19 @@ pub enum LinesError {
     #[error("Unknown color: {0}")]
     UnknownColor(i32),
 
+    #[error("Unknown template: '{0}' Valid templates are:\n  {}", crate::render::templates::TEMPLATES.keys().copied().intersperse("\n  ").collect::<String>())]
+    UnknownTemplate(String),
+
+    #[error("Invalid Segment index: {0}")]
+    InvalidSegmentIndex(usize),
+
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 
     #[error(transparent)]
     TryFromIntError(#[from] std::num::TryFromIntError),
 }
+type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, Default)]
 pub struct LinesData {
@@ -71,9 +81,9 @@ impl Default for BrushType {
 }
 
 impl std::convert::TryFrom<i32> for BrushType {
-    type Error = LinesError;
+    type Error = Error;
 
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
+    fn try_from(value: i32) -> Result<Self> {
         match value {
             // There seem to be different "versions" of similar brushes (e.g.
             // "Brush" at 0 and 12). v3 seems e.g. to use Brush 0 while v5 seems
@@ -98,7 +108,7 @@ impl std::convert::TryFrom<i32> for BrushType {
             17 => Ok(BrushType::Fineliner),
             18 => Ok(BrushType::Highlighter),
             21 => Ok(BrushType::Calligraphy),
-            v => Err(LinesError::UnknownBrush(v)),
+            v => Err(Error::UnknownBrush(v)),
         }
     }
 }
@@ -111,14 +121,14 @@ pub enum Color {
 }
 
 impl TryFrom<i32> for Color {
-    type Error = LinesError;
+    type Error = Error;
 
-    fn try_from(color_i: i32) -> Result<Self, Self::Error> {
+    fn try_from(color_i: i32) -> Result<Self> {
         match color_i {
             0 => Ok(Color::Black),
             1 => Ok(Color::Grey),
             2 => Ok(Color::White),
-            _ => Err(LinesError::UnknownColor(color_i)),
+            _ => Err(Error::UnknownColor(color_i)),
         }
     }
 }
@@ -140,9 +150,9 @@ pub struct Line {
 }
 
 impl Line {
-    fn segment_length(&self, i: usize) -> Result<f32, &str> {
+    fn segment_length(&self, i: usize) -> Result<f32> {
         if i + 1 >= self.points.len() {
-            Err("Line segment index out of bounds")
+            Err(Error::InvalidSegmentIndex(i))
         } else {
             Ok(self.points[i].distance(&self.points[i + 1]))
         }
@@ -183,9 +193,7 @@ impl Line {
         (1..points.len())
             .map(|i| {
                 let v = &points[i] - &points[i - 1];
-                v.rotate_orthogonally()
-                    .set_length(offset_distance)
-                    .unwrap_or(DirectionVec::ZERO)
+                v.rotate_orthogonally().set_length(offset_distance)
             })
             .collect()
     }
@@ -289,14 +297,13 @@ impl DirectionVec {
         (self.x.powi(2) + self.y.powi(2)).sqrt()
     }
 
-    fn set_length(mut self, length: f32) -> Result<DirectionVec, &'static str> {
+    fn set_length(mut self, length: f32) -> DirectionVec {
         let factor = self.length() / length;
-        if factor == 0.0 {
-            return Err("Can't scale a 0-length vector");
+        if factor != 0.0 {
+            self.x /= factor;
+            self.y /= factor;
         }
-        self.x /= factor;
-        self.y /= factor;
-        Ok(self)
+        self
     }
 
     fn rotate_orthogonally(mut self) -> DirectionVec {

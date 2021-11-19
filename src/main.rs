@@ -101,7 +101,7 @@ fn main() -> Result<()> {
         .value_of("distance-threshold")
         .expect("Failed to read distance threshold")
         .parse()
-        .expect("Distance threshold not a valud f32");
+        .expect("Distance threshold not a valid f32");
 
     let debug_dump = matches.is_present("debug-dump");
     if debug_dump && (output_type != OutputType::Svg) {

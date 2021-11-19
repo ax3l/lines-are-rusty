@@ -1,5 +1,5 @@
 use crate::render::renderlib::{line_to_css_color, BoundingBox};
-use crate::*;
+use crate::{BrushType, LayerColors, Line, Page, Result};
 use std::io;
 
 const WIDTH_FACTOR: f32 = 0.8;
@@ -42,7 +42,7 @@ pub fn render_constant_width_line(
             path = path
                 .set("stroke-width", prev_point.width)
                 .set("stroke-linecap", "butt")
-                .set("stroke-opacity", 0.25);
+                .set("stroke-opacity", 0.25f32);
         }
         _ => {
             path = path
@@ -120,7 +120,7 @@ pub fn render_svg(
     layer_colors: &LayerColors,
     distance_threshold: f32,
     debug_dump: bool,
-) -> io::Result<()> {
+) -> Result<()> {
     let mut doc = svg::Document::new();
     for (layer_id, layer) in page.layers.iter().enumerate() {
         let mut layer_group = svg::node::element::Group::new().set("class", "layer");

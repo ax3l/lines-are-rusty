@@ -1,13 +1,14 @@
-use crate::*;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::convert::TryFrom;
 use std::io;
+
+use crate::{BrushType, Color, Error, Layer, Line, LinesData, Page, Point, Result};
 
 impl LinesData {
     /// Parses data from an .rm or .lines file to `LinesData`.
     /// Possible errors are `io::Error` and `VersionError`,
     /// Currently, only .rm files of version 3 and 5 are supported.
-    pub fn parse(file: &mut dyn io::Read) -> Result<LinesData, LinesError> {
+    pub fn parse(file: &mut dyn io::Read) -> Result<LinesData> {
         let mut buffer = [0; 33];
         file.read_exact(&mut buffer)?;
         let untrimmed_string = String::from_utf8_lossy(&buffer);
@@ -15,11 +16,11 @@ impl LinesData {
         let version = match version_string {
             "reMarkable lines with selections and layers" => {
                 // early version of the format that is not supported
-                return Err(LinesError::UnsupportedVersion(version_string.to_string()));
+                return Err(Error::UnsupportedVersion(version_string.to_string()));
             }
             "reMarkable .lines file, version=3" => 3,
             "reMarkable .lines file, version=5" => 5,
-            _ => return Err(LinesError::UnsupportedVersion(version_string.to_string())),
+            _ => return Err(Error::UnsupportedVersion(version_string.to_string())),
         };
 
         if version >= 3 {
@@ -42,15 +43,15 @@ pub(crate) struct LinesDataReader<'a> {
 }
 
 impl LinesDataReader<'_> {
-    fn read_i32(&mut self) -> Result<i32, io::Error> {
-        self.file.read_i32::<LittleEndian>()
+    fn read_i32(&mut self) -> Result<i32> {
+        Ok(self.file.read_i32::<LittleEndian>()?)
     }
 
-    fn read_f32(&mut self) -> Result<f32, io::Error> {
-        self.file.read_f32::<LittleEndian>()
+    fn read_f32(&mut self) -> Result<f32> {
+        Ok(self.file.read_f32::<LittleEndian>()?)
     }
 
-    fn read_line(&mut self) -> Result<Line, LinesError> {
+    fn read_line(&mut self) -> Result<Line> {
         Ok(Line {
             brush_type: BrushType::try_from(self.read_i32()?)?,
             color: Color::try_from(self.read_i32()?)?,
@@ -65,12 +66,12 @@ impl LinesDataReader<'_> {
         })
     }
 
-    fn read_points(&mut self) -> Result<Vec<Point>, io::Error> {
+    fn read_points(&mut self) -> Result<Vec<Point>> {
         let num_points = self.read_i32()?;
         (0..num_points).map(|_| self.read_point()).collect()
     }
 
-    fn read_point(&mut self) -> Result<Point, io::Error> {
+    fn read_point(&mut self) -> Result<Point> {
         Ok(Point {
             x: self.read_f32()?,
             y: self.read_f32()?,
@@ -81,12 +82,12 @@ impl LinesDataReader<'_> {
         })
     }
 
-    fn read_lines(&mut self) -> Result<Vec<Line>, LinesError> {
+    fn read_lines(&mut self) -> Result<Vec<Line>> {
         let num_lines = self.read_i32()?;
         (0..num_lines).map(|_| self.read_line()).collect()
     }
 
-    fn read_layers(&mut self) -> Result<Vec<Layer>, LinesError> {
+    fn read_layers(&mut self) -> Result<Vec<Layer>> {
         let num_layers = self.read_i32()?;
         (0..num_layers)
             .map(|_| {
@@ -97,7 +98,7 @@ impl LinesDataReader<'_> {
             .collect()
     }
 
-    pub fn read_pages(&mut self) -> Result<Vec<Page>, LinesError> {
+    pub fn read_pages(&mut self) -> Result<Vec<Page>> {
         // From version 3(?) on, only a single page is stored per file.
         // The number of pages is not stored in the lines file any more.
         let num_pages = if self.version >= 3 {
