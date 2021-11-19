@@ -26,10 +26,9 @@ fn main() -> Result<()> {
                 .help("The file to save the rendered output to. If omitted, output is written to stdout. Required for PDF.")
         )
         .arg(
-            Arg::with_name("no-auto-crop")
-                .short("n")
-                .long("no-crop")
-                .help("Don't crop the page to fit the content")
+            Arg::with_name("auto-crop")
+                .long("crop")
+                .help("Crop the page to fit the content")
         )
         .arg(
             Arg::with_name("custom-colors")
@@ -78,7 +77,7 @@ fn main() -> Result<()> {
         None => OutputType::Svg,
     };
 
-    let auto_crop = !matches.is_present("no-auto-crop");
+    let auto_crop = matches.is_present("auto-crop");
     let colors = matches
         .value_of("custom-colors")
         .unwrap_or_else(|| unreachable!());
