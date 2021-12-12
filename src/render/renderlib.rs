@@ -1,4 +1,4 @@
-use crate::{BrushType, Color, LayerColors, Line, Page, Point};
+use crate::{BrushType, Color, LayerColor, Line, Page, Point};
 use core::f32::{INFINITY, NEG_INFINITY};
 
 pub(crate) struct BoundingBox {
@@ -44,19 +44,17 @@ impl BoundingBox {
     }
 }
 
-pub fn line_to_css_color<'a>(
-    line: &Line,
-    mut layer_id: usize,
-    layer_colors: &'a LayerColors,
-) -> &'a str {
+pub fn line_to_css_color(line: &Line, layer_idx: usize, layer_colors: &[LayerColor]) -> String {
     // If no layer color is provided for this layer, default to the last layer we have colors for.
-    layer_id = layer_id.min(layer_colors.colors.len() - 1);
+    let layer_colors = layer_colors.get(layer_idx).cloned().unwrap_or_default();
     match line.brush_type {
-        BrushType::Highlighter => "rgb(240, 220, 40)",
+        BrushType::Highlighter => "rgb(240, 220, 40)".to_string(),
         _ => match line.color {
-            Color::Black => &layer_colors.colors[layer_id].0,
-            Color::Grey => &layer_colors.colors[layer_id].1,
-            Color::White => &layer_colors.colors[layer_id].2,
+            Color::Black => layer_colors.black,
+            Color::Grey => layer_colors.grey,
+            Color::White => layer_colors.white,
+            Color::Blue => layer_colors.blue,
+            Color::Red => layer_colors.red,
         },
     }
 }

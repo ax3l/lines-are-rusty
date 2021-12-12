@@ -1,5 +1,3 @@
-#![feature(iter_intersperse)]
-
 pub mod render {
     pub mod pdf;
     pub mod renderlib;
@@ -27,7 +25,7 @@ pub enum Error {
     #[error("Unknown color: {0}")]
     UnknownColor(i32),
 
-    #[error("Unknown template: '{0}' Valid templates are:\n  {}", crate::render::templates::TEMPLATES.keys().copied().intersperse("\n  ").collect::<String>())]
+    #[error("Unknown template: '{0}' Valid templates are:\n  {}", crate::render::templates::TEMPLATES.keys().copied().map(|t| format!("\n  {}", t)).collect::<String>())]
     UnknownTemplate(String),
 
     #[error("Invalid Segment index: {0}")]
@@ -118,6 +116,8 @@ pub enum Color {
     Black,
     Grey,
     White,
+    Blue,
+    Red,
 }
 
 impl TryFrom<i32> for Color {
@@ -128,6 +128,8 @@ impl TryFrom<i32> for Color {
             0 => Ok(Color::Black),
             1 => Ok(Color::Grey),
             2 => Ok(Color::White),
+            6 => Ok(Color::Blue),
+            7 => Ok(Color::Red),
             _ => Err(Error::UnknownColor(color_i)),
         }
     }
@@ -413,14 +415,23 @@ fn test_matrix_point_mul() {
     assert_eq!([10.0, 14.0], m * p);
 }
 
-pub struct LayerColors {
-    pub colors: Vec<(String, String, String)>,
+#[derive(Clone)]
+pub struct LayerColor {
+    pub black: String,
+    pub grey: String,
+    pub white: String,
+    pub blue: String,
+    pub red: String,
 }
 
-impl Default for LayerColors {
+impl Default for LayerColor {
     fn default() -> Self {
         Self {
-            colors: vec![("black".to_string(), "grey".to_string(), "white".to_string())],
+            black: "black".to_string(),
+            grey: "#bfbfbf".to_string(),
+            white: "white".to_string(),
+            blue: "#0062cc".to_string(),
+            red: "#d90707".to_string(),
         }
     }
 }

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{App, Arg};
-use lines_are_rusty::{LayerColors, LinesData};
+use lines_are_rusty::{LayerColor, LinesData};
 use std::fs::{metadata, File};
 use std::io::Read;
 use std::io::{self, BufWriter, Write};
@@ -35,7 +35,7 @@ fn main() -> Result<()> {
                 .short("c")
                 .long("colors")
                 .help("Which colors to use for the layers. Format: L1-black,L1-gray,L1-white;...;L5-black,L5-gray,L5-white")
-                .default_value("black,gray,white;black,gray,white;black,gray,white;black,gray,white;black,gray,white")
+                .default_value("")
         )
         .arg(
             Arg::with_name("output-type")
@@ -84,23 +84,28 @@ fn main() -> Result<()> {
     };
 
     let auto_crop = matches.is_present("auto-crop");
-    let colors = matches
-        .value_of("custom-colors")
-        .unwrap_or_else(|| unreachable!());
+    let colors = matches.value_of("custom-colors").unwrap();
 
-    let layer_colors = lines_are_rusty::LayerColors {
-        colors: colors
-            .split(';')
-            .map(|layer| {
-                let c = layer.split(',').collect::<Vec<&str>>();
-                if c.len() != 3 {
-                    eprintln!("Expected 3 colors per layer. Found: {}", layer);
-                    exit(1);
-                }
-                (c[0].to_string(), c[1].to_string(), c[2].to_string())
-            })
-            .collect(),
-    };
+    let layer_colors = colors
+        .split(';')
+        .map(|layer| {
+            let c = layer.split(',').collect::<Vec<&str>>();
+            if c.len() != 5 {
+                eprintln!(
+                    "Expected 5 colors per layer (black, grey, white, blue, red). Found: {}",
+                    layer
+                );
+                exit(1);
+            }
+            LayerColor {
+                black: c[0].to_string(),
+                grey: c[1].to_string(),
+                white: c[2].to_string(),
+                blue: c[3].to_string(),
+                red: c[4].to_string(),
+            }
+        })
+        .collect();
 
     let distance_threshold: f32 = matches
         .value_of("distance-threshold")
@@ -192,7 +197,7 @@ enum OutputType {
 struct Options<'a> {
     output_type: OutputType,
     output_filename: Option<&'a str>,
-    layer_colors: LayerColors,
+    layer_colors: Vec<LayerColor>,
     auto_crop: bool,
     distance_threshold: f32,
     template: Option<&'a str>,

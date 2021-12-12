@@ -1,6 +1,6 @@
 use crate::render::renderlib::{line_to_css_color, BoundingBox};
 use crate::render::templates;
-use crate::{BrushType, LayerColors, Line, Page, Result};
+use crate::{BrushType, LayerColor, Line, Page, Result};
 use std::io;
 
 const WIDTH_FACTOR: f32 = 0.8;
@@ -118,7 +118,7 @@ pub fn render_svg(
     output: &mut dyn io::Write,
     page: &Page,
     auto_crop: bool,
-    layer_colors: &LayerColors,
+    layer_colors: &[LayerColor],
     distance_threshold: f32,
     template: Option<&str>,
     debug_dump: bool,
@@ -132,7 +132,7 @@ pub fn render_svg(
                 BrushType::Highlighter | BrushType::Fineliner => {
                     layer_group = layer_group.add(render_constant_width_line(
                         line,
-                        css_color,
+                        &css_color,
                         distance_threshold,
                         debug_dump,
                     ))
@@ -144,7 +144,7 @@ pub fn render_svg(
                 _ => {
                     layer_group = layer_group.add(render_variable_width_line(
                         line,
-                        css_color,
+                        &css_color,
                         distance_threshold,
                         debug_dump,
                     ))
@@ -167,10 +167,10 @@ pub fn render_svg(
             .set("width", width)
             .set("height", height);
     } else {
-        let width = 1404;
-        let height = 1872;
+        let width = 1404i16;
+        let height = 1872i16;
         doc = doc
-            .set("viewBox", (0, 0, width, height))
+            .set("viewBox", (0i8, 0i8, width, height))
             .set("width", width)
             .set("height", height);
     }
